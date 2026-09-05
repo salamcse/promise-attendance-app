@@ -39,9 +39,19 @@ export default function StatusCard() {
   const onToggleClock = async () => {
     try {
       if (isClockedIn) {
-        await handleClockOut(comment);
+        const res = await handleClockOut(comment);
+        if (res?.isAlreadyClockedOut) {
+          const msg = 'Notice: Your shift was already closed on the server.';
+          if (typeof alert !== 'undefined') alert(msg);
+          else Alert.alert('Shift Closed', msg);
+        }
       } else {
-        await handleClockIn(comment);
+        const res = await handleClockIn(comment);
+        if (res?.isAlreadyClockedIn) {
+          const msg = 'Notice: You were already clocked in on the server. Your active shift has been restored and you can now Clock Out.';
+          if (typeof alert !== 'undefined') alert(msg);
+          else Alert.alert('Shift Restored', msg);
+        }
       }
       setComment('');
     } catch (err) {

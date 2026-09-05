@@ -1,18 +1,29 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
 import StatusCard from '../components/StatusCard';
 import LocationCard from '../components/LocationCard';
 import IpCard from '../components/IpCard';
-import { UserCheck, ShieldCheck, History, ArrowRight, Layers } from 'lucide-react-native';
+import { UserCheck, ShieldCheck, History, ArrowRight, Layers, LogOut } from 'lucide-react-native';
 
 export default function DashboardScreen({ onNavigateHistory, onNavigateSettings }) {
-  const { authUser, isAdmin, attendanceLogs } = useAttendance();
+  const { authUser, isAdmin, attendanceLogs, logout, syncWithServer, refreshLocationAndIp } = useAttendance();
+  const [refreshing, setRefreshing] = useState(false);
   const recentLogs = attendanceLogs.slice(0, 2);
 
   const displayName = authUser?.name || 'Employee';
   const displayPhone = authUser?.phone || '';
   const avatarLetters = displayName.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'EM';
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (syncWithServer) await syncWithServer();
+      if (refreshLocationAndIp) await refreshLocationAndIp();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const isSales = authUser?.role === 'Sales Man' || authUser?.role === 'Head Off Sales' || (authUser?.email && authUser.email.includes('sales'));
   let roleLabel = 'Employee';
@@ -27,7 +38,18 @@ export default function DashboardScreen({ onNavigateHistory, onNavigateSettings 
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#6366F1"
+          colors={['#6366F1']}
+        />
+      }
+    >
       {/* Welcome Banner */}
       <View style={styles.welcomeBanner}>
         <View style={[styles.avatarCircle, isAdmin ? styles.avatarCircleAdmin : (isSales ? styles.avatarCircleSales : {})]}>
@@ -123,6 +145,22 @@ export default function DashboardScreen({ onNavigateHistory, onNavigateSettings 
         ) : (
           <Text style={styles.emptyText}>No past sessions recorded yet.</Text>
         )}
+      </View>
+
+      {/* Account Session & Logout Footer */}
+      <View style={styles.footerLogoutCard}>
+        <View style={styles.footerUserInfo}>
+          <Text style={styles.footerUserName}>{displayName}</Text>
+          <Text style={styles.footerUserRole}>{roleLabel} • {authUser?.email || 'Logged In'}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.footerLogoutBtn}
+          onPress={logout}
+          activeOpacity={0.8}
+        >
+          <LogOut size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.footerLogoutText}>Log Out</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -308,5 +346,46 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  footerLogoutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginTop: 8,
+  },
+  footerUserInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  footerUserName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  footerUserRole: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  footerLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  footerLogoutText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

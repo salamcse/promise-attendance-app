@@ -60,7 +60,7 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
             activeOpacity={0.8}
             accessibilityLabel="Logout"
           >
-            <LogOut size={13} color="#EF4444" style={{ marginRight: 3 }} />
+            <LogOut size={13} color="#FFFFFF" />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -202,18 +202,21 @@ const styles = StyleSheet.create({
   logoutBadgeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.18)',
-    paddingHorizontal: 8,
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderColor: '#EF4444',
     flexShrink: 0,
+    minHeight: 30,
   },
   logoutText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#FFFFFF',
+    marginLeft: 4,
   },
   timeRow: {
     flexDirection: 'row',

@@ -13,7 +13,8 @@ import {
   getTodayCompletedWorkSeconds,
   loginUser,
   getAuthUser,
-  logoutUser
+  logoutUser,
+  syncServerAttendance,
 } from '../services/apiService';
 
 const AttendanceContext = createContext();
@@ -51,6 +52,25 @@ export function AttendanceProvider({ children }) {
     setTodayCompletedSeconds(completedSecs);
   };
 
+  const syncWithServer = async (userParam, configParam) => {
+    try {
+      const u = userParam || authUser;
+      const c = configParam || apiConfig;
+      if (!u) return;
+
+      const syncResult = await syncServerAttendance(u, c);
+      if (syncResult.isClockedIn && syncResult.session) {
+        setActiveSession(syncResult.session);
+      } else if (!syncResult.isClockedIn) {
+        setActiveSession(null);
+      }
+      await refreshTodayStats();
+      return syncResult;
+    } catch (e) {
+      console.warn('syncWithServer error:', e);
+    }
+  };
+
   useEffect(() => {
     async function initData() {
       const user = await getAuthUser();
@@ -67,6 +87,11 @@ export function AttendanceProvider({ children }) {
 
       await refreshTodayStats();
       await refreshLocationAndIp();
+
+      // Automatically sync live active shift from server
+      if (user) {
+        syncWithServer(user, config);
+      }
     }
 
     initData();
@@ -98,6 +123,8 @@ export function AttendanceProvider({ children }) {
     try {
       const user = await loginUser(email, password);
       setAuthUser(user);
+      // Auto sync shift state from backend immediately
+      await syncWithServer(user, apiConfig);
       return user;
     } catch (err) {
       throw err;
@@ -111,6 +138,7 @@ export function AttendanceProvider({ children }) {
     try {
       await logoutUser();
       setAuthUser(null);
+      setActiveSession(null);
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
@@ -236,6 +264,7 @@ export function AttendanceProvider({ children }) {
         isActionLoading,
         handleClockIn,
         handleClockOut,
+        syncWithServer,
         refreshLocationAndIp,
         updateApiConfig,
         handleClearLogs,

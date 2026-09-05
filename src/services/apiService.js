@@ -278,6 +278,95 @@ export async function getActiveSession() {
 }
 
 /**
+ * Sync active attendance state directly from Promise API (/status?user_id=...)
+ */
+export async function syncServerAttendance(userOverride, configOverride) {
+  try {
+    const config = configOverride || await getApiConfig();
+    const authUser = userOverride || await getAuthUser();
+
+    if (config.mode !== 'custom' || !config.baseUrl || !authUser) {
+      const localSession = await getActiveSession();
+      return { isClockedIn: !!localSession, session: localSession };
+    }
+
+    const normalizedBase = normalizeApiUrl(config.baseUrl);
+    const userId = authUser.id || 1;
+    const endpoint = `${normalizedBase}/status?user_id=${userId}`;
+
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        ...(authUser?.token ? { Authorization: `Bearer ${authUser.token}` } : (config.authToken ? { Authorization: `Bearer ${config.authToken}` } : {})),
+      },
+    });
+
+    if (!response.ok) {
+      const localSession = await getActiveSession();
+      return { isClockedIn: !!localSession, session: localSession };
+    }
+
+    const data = await response.json();
+    const todayStr = getLocalDateString();
+
+    if (data.is_clocked_in && data.active_session) {
+      const activeData = data.active_session;
+      const firstIn = data.today_attendance?.first_clock_in || activeData.clock_in_time;
+      if (firstIn) {
+        await AsyncStorage.setItem(TODAY_FIRST_CLOCK_IN_KEY + todayStr, firstIn);
+      }
+
+      const syncedSession = {
+        id: activeData.id || ('SESS-' + Date.now()),
+        firstClockInTime: firstIn,
+        clockInTime: activeData.clock_in_time,
+        clockInLocation: {
+          latitude: parseFloat(activeData.clock_in_latitude) || 23.78,
+          longitude: parseFloat(activeData.clock_in_longitude) || 90.36,
+          address: activeData.clock_in_address || 'Office Location',
+        },
+        clockInIp: {
+          ip: activeData.clock_in_ip || '',
+          isp: '',
+          connectionType: 'Online',
+        },
+        clockInComment: null,
+        priorCompletedSeconds: (data.today_attendance?.total_work_minutes || 0) * 60,
+        clockOutTime: null,
+        clockOutLocation: null,
+        clockOutIp: null,
+        clockOutComment: null,
+        status: 'ACTIVE',
+        backendResponse: data,
+      };
+
+      await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(syncedSession));
+      return {
+        isClockedIn: true,
+        session: syncedSession,
+        todayAttendance: data.today_attendance,
+      };
+    } else {
+      // Server confirmed user is NOT clocked in. Clear local active session to prevent mismatch.
+      await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
+      if (data.today_attendance?.first_clock_in) {
+        await AsyncStorage.setItem(TODAY_FIRST_CLOCK_IN_KEY + todayStr, data.today_attendance.first_clock_in);
+      }
+      return {
+        isClockedIn: false,
+        session: null,
+        todayAttendance: data.today_attendance,
+      };
+    }
+  } catch (err) {
+    console.warn('Sync server attendance failed:', err);
+    const localSession = await getActiveSession();
+    return { isClockedIn: !!localSession, session: localSession };
+  }
+}
+
+/**
  * Get past attendance history logs
  */
 export async function getAttendanceHistory() {
@@ -417,12 +506,52 @@ export async function sendClockIn(locationData, ipData, comment = '') {
 
       if (!response.ok) {
         const errorText = await response.text();
+        
+        // If server says "already clocked in", do not throw an error and freeze the UI!
+        // Automatically sync the active session from the server so the user can clock out!
+        if (response.status === 422 && errorText.toLowerCase().includes('already clocked in')) {
+          console.log('User already clocked in on server. Auto-syncing active shift...');
+          const syncResult = await syncServerAttendance(authUser, config);
+          if (syncResult.isClockedIn && syncResult.session) {
+            return {
+              success: true,
+              isAlreadyClockedIn: true,
+              session: syncResult.session,
+              message: 'You are already clocked in. Active shift has been restored.',
+              payload,
+            };
+          }
+          // Fallback if status endpoint failed
+          const fallbackSession = {
+            id: 'SESS-' + Date.now(),
+            firstClockInTime: firstClockIn,
+            clockInTime: timestamp,
+            clockInLocation: locationData,
+            clockInIp: ipData,
+            clockInComment: comment ? comment.trim() : null,
+            priorCompletedSeconds,
+            clockOutTime: null,
+            clockOutLocation: null,
+            clockOutIp: null,
+            clockOutComment: null,
+            status: 'ACTIVE',
+          };
+          await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(fallbackSession));
+          return {
+            success: true,
+            isAlreadyClockedIn: true,
+            session: fallbackSession,
+            message: 'You are already clocked in. Active shift has been restored.',
+            payload,
+          };
+        }
+
         throw new Error(`Server returned HTTP ${response.status}: ${errorText || response.statusText}`);
       }
 
       const resData = await response.json();
       const session = {
-        id: 'SESS-' + Date.now(),
+        id: resData.data?.id || ('SESS-' + Date.now()),
         firstClockInTime: resData.data?.first_clock_in || firstClockIn,
         clockInTime: resData.data?.clock_in_time || timestamp,
         clockInLocation: locationData,
@@ -475,6 +604,7 @@ export async function sendClockOut(activeSession, locationData, ipData, comment 
   const timestamp = new Date().toISOString();
 
   const firstClockIn = activeSession.firstClockInTime || activeSession.clockInTime;
+  const isNumericSession = typeof activeSession.id === 'number' || /^\d+$/.test(String(activeSession.id));
 
   const payload = {
     latitude: locationData.latitude,
@@ -487,7 +617,7 @@ export async function sendClockOut(activeSession, locationData, ipData, comment 
     first_clock_in: firstClockIn,
     user_id: authUser?.id || 1,
     employee_id: config.employeeId,
-    session_id: activeSession.id,
+    ...(isNumericSession ? { session_id: Number(activeSession.id) } : {}),
     action: 'CLOCK_OUT',
     timestamp,
     network: {
@@ -515,6 +645,20 @@ export async function sendClockOut(activeSession, locationData, ipData, comment 
 
       if (!response.ok) {
         const errorText = await response.text();
+        if (response.status === 422 && (
+          errorText.toLowerCase().includes('not clocked in') ||
+          errorText.toLowerCase().includes('no active') ||
+          errorText.toLowerCase().includes('must clock in first')
+        )) {
+          // Server confirmed shift is already closed. Clear active session cleanly.
+          await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
+          return {
+            success: true,
+            isAlreadyClockedOut: true,
+            session: { ...activeSession, status: 'COMPLETED', clockOutTime: timestamp },
+            payload,
+          };
+        }
         throw new Error(`Server returned HTTP ${response.status}: ${errorText}`);
       }
       backendResponse = await response.json();
