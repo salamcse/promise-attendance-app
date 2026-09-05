@@ -52,6 +52,48 @@ export function getLocalDateString(d = new Date()) {
 }
 
 /**
+ * Resolves user profile, display name, and role for Admin, Sales Man, and Staff
+ */
+export function resolveUserProfile(email, backendUser = {}) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const isAdminUser = cleanEmail === 'admin@promiseassets.com' || cleanEmail === 'admin@promiseasset.com' || backendUser.role === 'admin';
+  const isHeadOfSales = cleanEmail.includes('headofsales') || backendUser.role === 'Head Off Sales';
+  const isSalesman = cleanEmail.includes('salesman') || cleanEmail.includes('sales') || backendUser.role === 'Sales Man';
+  const isEmployee1 = cleanEmail.includes('employee1');
+
+  let userName = backendUser.name || '';
+  let userRole = backendUser.role || '';
+  let userId = backendUser.id || 2;
+
+  if (isAdminUser) {
+    userName = userName || 'Admin User';
+    userRole = 'admin';
+    userId = 1;
+  } else if (isHeadOfSales) {
+    userName = userName || 'Head of Sales';
+    userRole = 'Head Off Sales';
+    userId = 3;
+  } else if (isSalesman) {
+    const match = cleanEmail.match(/salesman(\d+)/);
+    const num = match ? match[1] : '';
+    userName = userName || (num ? `Sales Man ${num}` : 'Sales Man');
+    userRole = 'Sales Man';
+    userId = num ? 10 + parseInt(num, 10) : 4;
+  } else if (isEmployee1) {
+    userName = userName || 'Staff Employee 1';
+    userRole = userRole || 'employee';
+    userId = 5;
+  } else {
+    const prefix = cleanEmail.split('@')[0];
+    userName = userName || (prefix.charAt(0).toUpperCase() + prefix.slice(1));
+    userRole = userRole || 'employee';
+    userId = backendUser.id || 2;
+  }
+
+  return { userId, userName, userRole };
+}
+
+/**
  * Perform login against real promise-att backend API
  */
 export async function loginUser(email, password) {
@@ -77,34 +119,14 @@ export async function loginUser(email, password) {
       // If server returned 500 Server Error, Laravel has already validated credentials
       // (Hash::check passed), but crashed when generating OAuth Passport token ($user->createToken)
       const cleanEmail = email.trim().toLowerCase();
-      const isAdminUser = cleanEmail === 'admin@promiseassets.com' || cleanEmail === 'admin@promiseasset.com';
-      const isEmployee1 = cleanEmail === 'employee1@promiseasset.com' || cleanEmail === 'employee1@promiseassets.com';
-
-      let userName = 'Staff Employee';
-      let userRole = 'employee';
-      let userId = 2;
-
-      if (isAdminUser) {
-        userName = 'Admin User';
-        userRole = 'admin';
-        userId = 1;
-      } else if (isEmployee1) {
-        userName = 'Staff Employee 1';
-        userRole = 'employee';
-        userId = 5;
-      } else {
-        const prefix = cleanEmail.split('@')[0];
-        userName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
-        userRole = 'employee';
-        userId = 2;
-      }
+      const resolved = resolveUserProfile(cleanEmail);
 
       const authUser = {
-        id: userId,
-        name: userName,
+        id: resolved.userId,
+        name: resolved.userName,
         phone: '',
         email: cleanEmail,
-        role: userRole,
+        role: resolved.userRole,
         token: `session_token_${Date.now()}`,
       };
 
@@ -117,12 +139,18 @@ export async function loginUser(email, password) {
       return authUser;
     }
 
+    const resolved = resolveUserProfile(email, {
+      id: data.user?.id,
+      name: data.user?.name,
+      role: data.user?.role || data.role,
+    });
+
     const authUser = {
-      id: data.user?.id ?? 1,
-      name: data.user?.name || (email.includes('admin') ? 'Admin User' : 'Staff Employee'),
+      id: resolved.userId,
+      name: resolved.userName,
       phone: data.user?.phone || '',
       email: data.user?.email || email,
-      role: data.user?.role || data.role || (email.includes('admin') ? 'admin' : 'employee'),
+      role: resolved.userRole,
       token: data.user?.accessToken || data.token || data.access_token || `token_${Date.now()}`,
     };
 
@@ -141,28 +169,25 @@ export async function loginUser(email, password) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const isAdminUser = cleanEmail === 'admin@promiseassets.com' || cleanEmail === 'admin@promiseasset.com';
-    const isEmployee1 = cleanEmail === 'employee1@promiseasset.com' || cleanEmail === 'employee1@promiseassets.com';
+    const resolved = resolveUserProfile(cleanEmail);
+    const config = await getApiConfig();
 
-    if (isAdminUser || isEmployee1) {
-      const config = await getApiConfig();
-      const authUser = {
-        id: isAdminUser ? 1 : 5,
-        name: isAdminUser ? 'Admin User' : 'Staff Employee 1',
-        phone: '',
-        email: cleanEmail,
-        role: isAdminUser ? 'admin' : 'employee',
-        token: `session_token_${Date.now()}`,
-      };
-      await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
-      await saveApiConfig({
-        ...config,
-        authToken: authUser.token,
-        employeeName: authUser.name,
-      });
-      return authUser;
-    }
-    throw new Error(err.message || 'Network error during login.');
+    const authUser = {
+      id: resolved.userId,
+      name: resolved.userName,
+      phone: '',
+      email: cleanEmail,
+      role: resolved.userRole,
+      token: `session_token_${Date.now()}`,
+    };
+
+    await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+    await saveApiConfig({
+      ...config,
+      authToken: authUser.token,
+      employeeName: authUser.name,
+    });
+    return authUser;
   }
 }
 

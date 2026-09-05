@@ -13,20 +13,37 @@ export default function DashboardScreen({ onNavigateHistory, onNavigateSettings 
   const displayName = authUser?.name || 'Employee';
   const displayPhone = authUser?.phone || '';
   const avatarLetters = displayName.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'EM';
-  const roleLabel = isAdmin ? 'Administrator' : 'Employee';
+
+  const isSales = authUser?.role === 'Sales Man' || authUser?.role === 'Head Off Sales' || (authUser?.email && authUser.email.includes('sales'));
+  let roleLabel = 'Employee';
+  if (isAdmin) {
+    roleLabel = 'Administrator';
+  } else if (authUser?.role === 'Head Off Sales' || (authUser?.email && authUser.email.includes('headofsales'))) {
+    roleLabel = 'Head of Sales';
+  } else if (isSales) {
+    roleLabel = 'Sales Man';
+  } else if (authUser?.role) {
+    roleLabel = authUser.role;
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Welcome Banner */}
       <View style={styles.welcomeBanner}>
-        <View style={[styles.avatarCircle, isAdmin && styles.avatarCircleAdmin]}>
+        <View style={[styles.avatarCircle, isAdmin ? styles.avatarCircleAdmin : (isSales ? styles.avatarCircleSales : {})]}>
           <Text style={styles.avatarText}>{avatarLetters}</Text>
         </View>
         <View style={styles.welcomeInfo}>
           <Text style={styles.welcomeTitle}>Welcome, {displayName}</Text>
           <View style={styles.roleTagRow}>
-            <View style={[styles.rolePill, isAdmin ? styles.rolePillAdmin : styles.rolePillEmployee]}>
-              <Text style={[styles.rolePillText, isAdmin ? styles.rolePillTextAdmin : styles.rolePillTextEmployee]}>
+            <View style={[
+              styles.rolePill,
+              isAdmin ? styles.rolePillAdmin : (isSales ? styles.rolePillSales : styles.rolePillEmployee)
+            ]}>
+              <Text style={[
+                styles.rolePillText,
+                isAdmin ? styles.rolePillTextAdmin : (isSales ? styles.rolePillTextSales : styles.rolePillTextEmployee)
+              ]}>
                 {roleLabel}
               </Text>
             </View>
@@ -145,6 +162,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F59E0B',
     borderColor: '#FCD34D',
   },
+  avatarCircleSales: {
+    backgroundColor: '#059669',
+    borderColor: '#34D399',
+  },
   avatarText: {
     fontSize: 16,
     fontWeight: '800',
@@ -174,6 +195,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(245,158,11,0.15)',
     borderColor: 'rgba(245,158,11,0.4)',
   },
+  rolePillSales: {
+    backgroundColor: 'rgba(16,185,129,0.15)',
+    borderColor: 'rgba(16,185,129,0.4)',
+  },
   rolePillEmployee: {
     backgroundColor: 'rgba(99,102,241,0.15)',
     borderColor: 'rgba(99,102,241,0.4)',
@@ -184,6 +209,9 @@ const styles = StyleSheet.create({
   },
   rolePillTextAdmin: {
     color: '#FCD34D',
+  },
+  rolePillTextSales: {
+    color: '#34D399',
   },
   rolePillTextEmployee: {
     color: '#818CF8',
