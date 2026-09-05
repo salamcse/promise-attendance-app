@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
 import { testApiEndpoint, PROD_BASE_URL, DEV_BASE_URL } from '../services/apiService';
-import { Settings, Server, User, ShieldAlert, CheckCircle2, Zap, HelpCircle, Lock, Globe } from 'lucide-react-native';
+import { Settings, Server, User, ShieldAlert, CheckCircle2, Zap, HelpCircle, Lock, Globe, LogOut } from 'lucide-react-native';
 
 export default function SettingsScreen() {
-  const { apiConfig, updateApiConfig, isAdmin, authUser } = useAttendance();
+  const { apiConfig, updateApiConfig, isAdmin, authUser, logout } = useAttendance();
 
   const [mode, setMode] = useState(apiConfig?.mode || 'custom');
   const [baseUrl, setBaseUrl] = useState(apiConfig?.baseUrl || PROD_BASE_URL);
@@ -304,11 +304,39 @@ export default function SettingsScreen() {
           {"\n"}• <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>GET /status</Text>
         </Text>
       </View>
+
+      {/* Explicit Session Logout Button */}
+      <TouchableOpacity
+        style={styles.settingsLogoutBtn}
+        onPress={logout}
+        activeOpacity={0.8}
+        accessibilityLabel="Logout"
+      >
+        <LogOut size={16} color="#EF4444" style={{ marginRight: 8 }} />
+        <Text style={styles.settingsLogoutText}>Logout of TimePulse</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  settingsLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    marginTop: 18,
+    marginBottom: 20,
+  },
+  settingsLogoutText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0F172A',

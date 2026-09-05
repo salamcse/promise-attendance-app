@@ -29,11 +29,13 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
       <View style={styles.topRow}>
         <View style={styles.brandGroup}>
           <View style={styles.iconBadge}>
-            <Clock size={22} color="#6366F1" />
+            <Clock size={20} color="#6366F1" />
           </View>
-          <View>
-            <Text style={styles.appTitle}>TimePulse</Text>
-            <Text style={styles.appSubtitle}>Smart Location & IP Attendance</Text>
+          <View style={styles.brandTextGroup}>
+            <Text style={styles.appTitle} numberOfLines={1}>TimePulse</Text>
+            <Text style={styles.appSubtitle} numberOfLines={1} ellipsizeMode="tail">
+              Smart Attendance
+            </Text>
           </View>
         </View>
 
@@ -46,9 +48,9 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
             >
               <View style={[styles.apiDot, apiConfig?.mode === 'custom' ? styles.dotCustom : styles.dotMock]} />
               <Text style={styles.apiModeText}>
-                {apiConfig?.mode === 'custom' ? 'Real API' : 'Mock API'}
+                {apiConfig?.mode === 'custom' ? 'Real API' : 'Mock'}
               </Text>
-              <Settings size={14} color="#94A3B8" style={{ marginLeft: 4 }} />
+              <Settings size={12} color="#94A3B8" style={{ marginLeft: 3 }} />
             </TouchableOpacity>
           )}
 
@@ -56,8 +58,9 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
             style={styles.logoutBadgeBtn}
             onPress={logout}
             activeOpacity={0.8}
+            accessibilityLabel="Logout"
           >
-            <LogOut size={14} color="#EF4444" style={{ marginRight: 4 }} />
+            <LogOut size={13} color="#EF4444" style={{ marginRight: 3 }} />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -77,7 +80,7 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
         </View>
       </View>
 
-      {/* Navigation Tabs - API & Profile tab strictly visible to Admin only */}
+      {/* Navigation Tabs - Clean compact labels */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabItem, activeTab === 'dashboard' && styles.tabItemActive]}
@@ -93,7 +96,7 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
           onPress={() => setActiveTab('history')}
         >
           <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>
-            Attendance Log
+            History
           </Text>
         </TouchableOpacity>
 
@@ -103,7 +106,7 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
             onPress={() => setActiveTab('settings')}
           >
             <Text style={[styles.tabText, activeTab === 'settings' && styles.tabTextActive]}>
-              API & Profile
+              Settings
             </Text>
           </TouchableOpacity>
         )}
@@ -115,8 +118,8 @@ export default function Header({ activeTab, setActiveTab, onOpenSettings }) {
 const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#0F172A',
-    paddingTop: 16,
-    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1E293B',
@@ -125,54 +128,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
+    gap: 8,
   },
   brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    marginRight: 6,
+  },
+  brandTextGroup: {
+    flex: 1,
+    minWidth: 0,
   },
   iconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: '#1E1B4B',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
     borderWidth: 1,
     borderColor: '#3730A3',
+    flexShrink: 0,
   },
   appTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#F8FAFC',
     letterSpacing: -0.5,
   },
   appSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#94A3B8',
     fontWeight: '500',
   },
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexShrink: 0,
   },
   apiBadgeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1E293B',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#334155',
+    flexShrink: 0,
   },
   apiDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 6,
+    marginRight: 4,
   },
   dotMock: {
     backgroundColor: '#38BDF8',
@@ -181,19 +195,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   apiModeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: '#CBD5E1',
   },
   logoutBadgeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    flexShrink: 0,
   },
   logoutText: {
     fontSize: 11,

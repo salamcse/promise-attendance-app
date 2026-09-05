@@ -4,10 +4,10 @@ import { useAttendance } from '../context/AttendanceContext';
 import StatusCard from '../components/StatusCard';
 import LocationCard from '../components/LocationCard';
 import IpCard from '../components/IpCard';
-import { UserCheck, ShieldCheck, History, ArrowRight, Layers } from 'lucide-react-native';
+import { UserCheck, ShieldCheck, History, ArrowRight, Layers, LogOut } from 'lucide-react-native';
 
 export default function DashboardScreen({ onNavigateHistory, onNavigateSettings }) {
-  const { authUser, isAdmin, attendanceLogs } = useAttendance();
+  const { authUser, isAdmin, attendanceLogs, logout } = useAttendance();
   const recentLogs = attendanceLogs.slice(0, 2);
 
   const displayName = authUser?.name || 'Employee';
@@ -35,6 +35,17 @@ export default function DashboardScreen({ onNavigateHistory, onNavigateSettings 
             ) : null}
           </View>
         </View>
+
+        {/* Quick Profile Logout Action */}
+        <TouchableOpacity
+          style={styles.bannerLogoutBtn}
+          onPress={logout}
+          activeOpacity={0.7}
+          accessibilityLabel="Logout"
+        >
+          <LogOut size={15} color="#EF4444" style={{ marginRight: 4 }} />
+          <Text style={styles.bannerLogoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Main Clock In / Clock Out Card */}
@@ -192,6 +203,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     fontWeight: '500',
+  },
+  bannerLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+  bannerLogoutText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EF4444',
   },
   sectionHeader: {
     fontSize: 11,
