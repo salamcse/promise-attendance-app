@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
-import { Lock, Mail, LogIn, Clock, ShieldCheck, Sparkles } from 'lucide-react-native';
+import { Lock, Mail, LogIn, Clock, ShieldCheck } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const { login, isAuthLoading } = useAttendance();
@@ -22,11 +22,6 @@ export default function LoginScreen() {
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check credentials.');
     }
-  };
-
-  const setDemoCredentials = () => {
-    setEmail('admin@promiseassets.com');
-    setPassword('password');
   };
 
   return (
@@ -50,7 +45,7 @@ export default function LoginScreen() {
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="admin@promiseassets.com"
+              placeholder="name@company.com"
               placeholderTextColor="#64748B"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -70,14 +65,6 @@ export default function LoginScreen() {
               secureTextEntry={true}
             />
           </View>
-
-          {/* Quick Demo Preset Button */}
-          <TouchableOpacity style={styles.demoChip} onPress={setDemoCredentials} activeOpacity={0.7}>
-            <Sparkles size={14} color="#FBBF24" style={{ marginRight: 6 }} />
-            <Text style={styles.demoChipText}>
-              Fill Admin Demo (admin@promiseassets.com / password)
-            </Text>
-          </TouchableOpacity>
 
           {errorMsg && (
             <View style={styles.errorBox}>
@@ -187,22 +174,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#F8FAFC',
     fontSize: 14,
-  },
-  demoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-  },
-  demoChipText: {
-    fontSize: 11,
-    color: '#FCD34D',
-    fontWeight: '600',
-    flex: 1,
   },
   errorBox: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
