@@ -12,10 +12,16 @@
       "android": {
         "buildType": "apk"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://spider.promiseassets.com/api/v1/hrm"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://spider.promiseassets.com/api/v1/hrm"
+      }
     }
   },
   "submit": {

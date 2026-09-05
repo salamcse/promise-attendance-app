@@ -208,6 +208,7 @@ export function AttendanceProvider({ children }) {
   const isAdmin = !!(
     authUser &&
     (authUser.email === 'admin@promiseasset.com' ||
+      authUser.email === 'admin@promiseassets.com' ||
       authUser.role === 'admin' ||
       authUser.role === 'Admin' ||
       authUser.phone === '01700000000')

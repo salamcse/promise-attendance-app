@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
-import { testApiEndpoint } from '../services/apiService';
-import { Settings, Server, User, ShieldAlert, CheckCircle2, Zap, HelpCircle, Lock } from 'lucide-react-native';
+import { testApiEndpoint, PROD_BASE_URL, DEV_BASE_URL } from '../services/apiService';
+import { Settings, Server, User, ShieldAlert, CheckCircle2, Zap, HelpCircle, Lock, Globe } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const { apiConfig, updateApiConfig, isAdmin, authUser } = useAttendance();
 
   const [mode, setMode] = useState(apiConfig?.mode || 'custom');
-  const [baseUrl, setBaseUrl] = useState(apiConfig?.baseUrl || 'http://127.0.0.1:8000/api/v1/hrm');
+  const [baseUrl, setBaseUrl] = useState(apiConfig?.baseUrl || PROD_BASE_URL);
   const [authToken, setAuthToken] = useState(apiConfig?.authToken || '');
   const [employeeId, setEmployeeId] = useState(apiConfig?.employeeId || 'EMP-9824');
   const [employeeName, setEmployeeName] = useState(authUser?.name || apiConfig?.employeeName || 'Md Abdus Salam');
@@ -22,7 +22,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (apiConfig) {
       setMode(apiConfig.mode || 'custom');
-      setBaseUrl(apiConfig.baseUrl || 'http://127.0.0.1:8000/api/v1/hrm');
+      setBaseUrl(apiConfig.baseUrl || PROD_BASE_URL);
       setAuthToken(apiConfig.authToken || '');
       setEmployeeId(apiConfig.employeeId || 'EMP-9824');
       setEmployeeName(authUser?.name || apiConfig.employeeName || 'Md Abdus Salam');
@@ -73,7 +73,7 @@ export default function SettingsScreen() {
           </View>
           <Text style={styles.restrictedTitle}>Admin Access Required</Text>
           <Text style={styles.restrictedSub}>
-            Only System Administrators can configure API endpoints (http://127.0.0.1:8000/api/v1/hrm).
+            Only System Administrators can configure API endpoints ({baseUrl}).
           </Text>
           <View style={styles.userBadge}>
             <User size={14} color="#94A3B8" style={{ marginRight: 6 }} />
@@ -91,9 +91,11 @@ export default function SettingsScreen() {
       {/* Header Title */}
       <View style={styles.titleCard}>
         <Settings size={22} color="#6366F1" style={{ marginRight: 10 }} />
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.mainTitle}>Admin API Configuration</Text>
-          <Text style={styles.mainSub}>Manage backend API endpoints (http://127.0.0.1:8000/api/v1/hrm)</Text>
+          <Text style={styles.mainSub} numberOfLines={1} ellipsizeMode="tail">
+            Active Endpoint: {baseUrl}
+          </Text>
         </View>
       </View>
 
@@ -120,7 +122,7 @@ export default function SettingsScreen() {
           >
             <Server size={16} color={mode === 'custom' ? '#10B981' : '#94A3B8'} style={{ marginRight: 6 }} />
             <Text style={[styles.modeBtnText, mode === 'custom' && styles.modeBtnTextActive]}>
-              Real API (http://127.0.0.1:8000/api/v1/hrm)
+              Enterprise API ({baseUrl.includes('spider.promiseassets.com') ? 'Production' : 'Custom'})
             </Text>
           </TouchableOpacity>
 
@@ -145,12 +147,39 @@ export default function SettingsScreen() {
           </View>
         ) : (
           <View style={styles.customApiBox}>
-            <Text style={styles.fieldLabel}>Real Backend API Base URL</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={styles.fieldLabel}>Real Backend API Base URL</Text>
+            </View>
+
+            {/* Environment Quick Presets */}
+            <View style={styles.presetRow}>
+              <TouchableOpacity
+                style={[styles.presetBtn, baseUrl === PROD_BASE_URL && styles.presetBtnActive]}
+                onPress={() => setBaseUrl(PROD_BASE_URL)}
+                activeOpacity={0.7}
+              >
+                <Globe size={13} color={baseUrl === PROD_BASE_URL ? '#818CF8' : '#94A3B8'} style={{ marginRight: 5 }} />
+                <Text style={[styles.presetBtnText, baseUrl === PROD_BASE_URL && styles.presetBtnTextActive]}>
+                  Production (spider.promiseassets.com)
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.presetBtn, baseUrl === DEV_BASE_URL && styles.presetBtnActive]}
+                onPress={() => setBaseUrl(DEV_BASE_URL)}
+                activeOpacity={0.7}
+              >
+                <Server size={13} color={baseUrl === DEV_BASE_URL ? '#818CF8' : '#94A3B8'} style={{ marginRight: 5 }} />
+                <Text style={[styles.presetBtnText, baseUrl === DEV_BASE_URL && styles.presetBtnTextActive]}>
+                  Local Dev (127.0.0.1:8000)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <TextInput
               style={styles.input}
               value={baseUrl}
               onChangeText={setBaseUrl}
-              placeholder="http://127.0.0.1:8000/api/v1/hrm"
+              placeholder={PROD_BASE_URL}
               placeholderTextColor="#64748B"
               autoCapitalize="none"
               autoCorrect={false}
@@ -175,7 +204,7 @@ export default function SettingsScreen() {
               {isTesting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.testBtnText}>Test API Connection (http://127.0.0.1:8000)</Text>
+                <Text style={styles.testBtnText}>Test API Connection</Text>
               )}
             </TouchableOpacity>
 
@@ -266,13 +295,13 @@ export default function SettingsScreen() {
       <View style={styles.guideCard}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           <HelpCircle size={16} color="#818CF8" style={{ marginRight: 6 }} />
-          <Text style={styles.guideTitle}>Promise-Att API Endpoint Specifications</Text>
+          <Text style={styles.guideTitle}>Promise Enterprise API Specifications</Text>
         </View>
         <Text style={styles.guideText}>
-          Connected Endpoints on <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>http://127.0.0.1:8000</Text>:
-          {"\n"}• <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>POST /api/v1/hrm/clock-in</Text>
-          {"\n"}• <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>POST /api/v1/hrm/clock-out</Text>
-          {"\n"}• <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>GET /api/v1/hrm/status</Text>
+          Connected Endpoints on <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>{baseUrl}</Text>:
+          {"\n"}• <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>POST /clock-in</Text>
+          {"\n"}• <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>POST /clock-out</Text>
+          {"\n"}• <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>GET /status</Text>
         </Text>
       </View>
     </ScrollView>
@@ -327,7 +356,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   userBadge: {
     flexDirection: 'row',
@@ -340,14 +369,19 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   userBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
     color: '#CBD5E1',
+    fontWeight: '500',
   },
   titleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   mainTitle: {
     fontSize: 18,
@@ -443,6 +477,35 @@ const styles = StyleSheet.create({
   },
   customApiBox: {
     gap: 8,
+  },
+  presetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  presetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  presetBtnActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.18)',
+    borderColor: '#6366F1',
+  },
+  presetBtnText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  presetBtnTextActive: {
+    color: '#A5B4FC',
+    fontWeight: '700',
   },
   fieldLabel: {
     fontSize: 12,

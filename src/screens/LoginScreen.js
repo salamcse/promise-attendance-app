@@ -25,8 +25,8 @@ export default function LoginScreen() {
   };
 
   const setDemoCredentials = () => {
-    setEmail('admin@promiseasset.com');
-    setPassword('password123');
+    setEmail('admin@promiseassets.com');
+    setPassword('password');
   };
 
   return (
@@ -50,7 +50,7 @@ export default function LoginScreen() {
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="you@promiseasset.com"
+              placeholder="admin@promiseassets.com"
               placeholderTextColor="#64748B"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -75,7 +75,7 @@ export default function LoginScreen() {
           <TouchableOpacity style={styles.demoChip} onPress={setDemoCredentials} activeOpacity={0.7}>
             <Sparkles size={14} color="#FBBF24" style={{ marginRight: 6 }} />
             <Text style={styles.demoChipText}>
-              Fill Admin Demo (admin@promiseasset.com / password123)
+              Fill Admin Demo (admin@promiseassets.com / password)
             </Text>
           </TouchableOpacity>
 
@@ -106,7 +106,7 @@ export default function LoginScreen() {
         <View style={styles.footerInfo}>
           <ShieldCheck size={14} color="#10B981" style={{ marginRight: 6 }} />
           <Text style={styles.footerText}>
-            Secured by Promise-Att Backend API (127.0.0.1:8000)
+            Secured by Promise Enterprise API (spider.promiseassets.com)
           </Text>
         </View>
       </View>
