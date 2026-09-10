@@ -1,168 +1,57 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
+import Header from '../components/Header';
 import StatusCard from '../components/StatusCard';
-import LocationCard from '../components/LocationCard';
-import IpCard from '../components/IpCard';
-import { UserCheck, ShieldCheck, History, ArrowRight, Layers, LogOut } from 'lucide-react-native';
+import SummaryStats from '../components/SummaryStats';
+import { Calendar } from 'lucide-react-native';
 
-export default function DashboardScreen({ onNavigateHistory, onNavigateSettings }) {
-  const { authUser, isAdmin, attendanceLogs, logout, syncWithServer, refreshLocationAndIp } = useAttendance();
+export default function DashboardScreen({ onNavigateHistory }) {
+  const { refreshAttendance } = useAttendance();
   const [refreshing, setRefreshing] = useState(false);
-  const recentLogs = attendanceLogs.slice(0, 2);
-
-  const displayName = authUser?.name || 'Employee';
-  const displayPhone = authUser?.phone || '';
-  const avatarLetters = displayName.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'EM';
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      if (syncWithServer) await syncWithServer();
-      if (refreshLocationAndIp) await refreshLocationAndIp();
+      await refreshAttendance();
     } finally {
       setRefreshing(false);
     }
   };
 
-  const isSales = authUser?.role === 'Sales Man' || authUser?.role === 'Head Off Sales' || (authUser?.email && authUser.email.includes('sales'));
-  let roleLabel = 'Employee';
-  if (isAdmin) {
-    roleLabel = 'Administrator';
-  } else if (authUser?.role === 'Head Off Sales' || (authUser?.email && authUser.email.includes('headofsales'))) {
-    roleLabel = 'Head of Sales';
-  } else if (isSales) {
-    roleLabel = 'Sales Man';
-  } else if (authUser?.role) {
-    roleLabel = authUser.role;
-  }
-
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#6366F1"
-          colors={['#6366F1']}
-        />
-      }
-    >
-      {/* Welcome Banner */}
-      <View style={styles.welcomeBanner}>
-        <View style={[styles.avatarCircle, isAdmin ? styles.avatarCircleAdmin : (isSales ? styles.avatarCircleSales : {})]}>
-          <Text style={styles.avatarText}>{avatarLetters}</Text>
-        </View>
-        <View style={styles.welcomeInfo}>
-          <Text style={styles.welcomeTitle}>Welcome, {displayName}</Text>
-          <View style={styles.roleTagRow}>
-            <View style={[
-              styles.rolePill,
-              isAdmin ? styles.rolePillAdmin : (isSales ? styles.rolePillSales : styles.rolePillEmployee)
-            ]}>
-              <Text style={[
-                styles.rolePillText,
-                isAdmin ? styles.rolePillTextAdmin : (isSales ? styles.rolePillTextSales : styles.rolePillTextEmployee)
-              ]}>
-                {roleLabel}
-              </Text>
-            </View>
-            {displayPhone ? (
-              <Text style={styles.phoneText}>{displayPhone}</Text>
-            ) : null}
-          </View>
-        </View>
-      </View>
+    <View style={styles.container}>
+      <Header />
 
-      {/* Main Clock In / Clock Out Card */}
-      <StatusCard />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#6366F1"
+            colors={['#6366F1']}
+          />
+        }
+      >
+        {/* Status Check-in / Check-out Card */}
+        <StatusCard />
 
-      {/* Real-time Location & IP Metrics Cards */}
-      <Text style={styles.sectionHeader}>LIVE VERIFICATION METRICS</Text>
-      <LocationCard />
-      <IpCard />
+        {/* 30-Day Summary Statistics */}
+        <SummaryStats />
 
-      {/* Recent Activity Section */}
-      <View style={styles.recentSection}>
-        <View style={styles.recentHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <History size={16} color="#6366F1" style={{ marginRight: 6 }} />
-            <Text style={styles.recentTitle}>Recent Attendance Activity</Text>
-          </View>
-
-          <TouchableOpacity onPress={onNavigateHistory} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.viewAllText}>View All</Text>
-            <ArrowRight size={14} color="#6366F1" />
-          </TouchableOpacity>
-        </View>
-
-        {recentLogs.length > 0 ? (
-          recentLogs.map((log) => {
-            const dateStr = new Date(log.clockInTime).toLocaleDateString([], {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-            });
-            const inTimeStr = new Date(log.clockInTime).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-            const outTimeStr = log.clockOutTime
-              ? new Date(log.clockOutTime).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : 'In Progress';
-
-            const hrs = Math.floor((log.durationSeconds || 0) / 3600);
-            const mins = Math.floor(((log.durationSeconds || 0) % 3600) / 60);
-
-            return (
-              <View key={log.id} style={styles.logCard}>
-                <View style={styles.logLeft}>
-                  <View style={styles.logDot} />
-                  <View>
-                    <Text style={styles.logDate}>{dateStr}</Text>
-                    <Text style={styles.logTimes}>
-                      {inTimeStr} → {outTimeStr}
-                    </Text>
-                    <Text style={styles.logMeta} numberOfLines={1}>
-                      IP: {log.clockInIp?.ip || 'N/A'} • {log.clockInLocation?.address || `${log.clockInLocation?.latitude}°, ${log.clockInLocation?.longitude}°`}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.logRight}>
-                  <Text style={styles.durationVal}>
-                    {log.durationSeconds ? `${hrs}h ${mins}m` : 'Active'}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          <Text style={styles.emptyText}>No past sessions recorded yet.</Text>
-        )}
-      </View>
-
-      {/* Account Session & Logout Footer */}
-      <View style={styles.footerLogoutCard}>
-        <View style={styles.footerUserInfo}>
-          <Text style={styles.footerUserName}>{displayName}</Text>
-          <Text style={styles.footerUserRole}>{roleLabel} • {authUser?.email || 'Logged In'}</Text>
-        </View>
+        {/* View Attendance History Navigation Button */}
         <TouchableOpacity
-          style={styles.footerLogoutBtn}
-          onPress={logout}
+          style={styles.historyBtn}
+          onPress={onNavigateHistory}
           activeOpacity={0.8}
         >
-          <LogOut size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-          <Text style={styles.footerLogoutText}>Log Out</Text>
+          <Calendar size={18} color="#6366F1" style={{ marginRight: 8 }} />
+          <Text style={styles.historyBtnText}>View Attendance History</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -171,221 +60,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
-  welcomeBanner: {
+  historyBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  avatarCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: '#818CF8',
-  },
-  avatarCircleAdmin: {
-    backgroundColor: '#F59E0B',
-    borderColor: '#FCD34D',
-  },
-  avatarCircleSales: {
-    backgroundColor: '#059669',
-    borderColor: '#34D399',
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  welcomeInfo: {
-    flex: 1,
-  },
-  welcomeTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    marginBottom: 5,
-  },
-  roleTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rolePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  rolePillAdmin: {
-    backgroundColor: 'rgba(245,158,11,0.15)',
-    borderColor: 'rgba(245,158,11,0.4)',
-  },
-  rolePillSales: {
-    backgroundColor: 'rgba(16,185,129,0.15)',
-    borderColor: 'rgba(16,185,129,0.4)',
-  },
-  rolePillEmployee: {
-    backgroundColor: 'rgba(99,102,241,0.15)',
-    borderColor: 'rgba(99,102,241,0.4)',
-  },
-  rolePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  rolePillTextAdmin: {
-    color: '#FCD34D',
-  },
-  rolePillTextSales: {
-    color: '#34D399',
-  },
-  rolePillTextEmployee: {
-    color: '#818CF8',
-  },
-  phoneText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 1,
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  recentSection: {
     backgroundColor: '#1E293B',
-    borderRadius: 18,
-    padding: 18,
-    marginTop: 8,
+    marginHorizontal: 20,
+    marginTop: 20,
+    paddingVertical: 14,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#334155',
   },
-  recentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  recentTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+  historyBtnText: {
     color: '#F8FAFC',
-  },
-  viewAllText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6366F1',
-    marginRight: 4,
-  },
-  logCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#0F172A',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  logLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  logDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-    marginRight: 12,
-  },
-  logDate: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#F8FAFC',
-  },
-  logTimes: {
-    fontSize: 12,
-    color: '#CBD5E1',
-    marginTop: 2,
-  },
-  logMeta: {
-    fontSize: 10,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  logRight: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  durationVal: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#818CF8',
-  },
-  emptyText: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-  footerLogoutCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginTop: 8,
-  },
-  footerUserInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  footerUserName: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#F8FAFC',
-  },
-  footerUserRole: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  footerLogoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DC2626',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-  footerLogoutText: {
-    color: '#FFFFFF',
-    fontSize: 13,
     fontWeight: '700',
   },
 });

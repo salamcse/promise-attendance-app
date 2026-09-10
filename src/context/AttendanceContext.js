@@ -1,113 +1,90 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { getCurrentLocation } from '../services/locationService';
-import { getIpInfo } from '../services/ipService';
 import {
-  getApiConfig,
-  saveApiConfig,
-  getActiveSession,
-  getAttendanceHistory,
-  sendClockIn,
-  sendClockOut,
-  clearAttendanceHistory,
-  getTodayFirstClockIn,
-  getTodayCompletedWorkSeconds,
-  loginUser,
   getAuthUser,
+  loginUser,
   logoutUser,
-  syncServerAttendance,
+  getAttendanceStatus,
+  clockIn,
+  clockOut,
+  getAttendanceHistory,
+  recordCompletedShift,
 } from '../services/apiService';
+import { calculateMonthStats } from '../services/attendanceUtils';
 
 const AttendanceContext = createContext();
 
 export function AttendanceProvider({ children }) {
   const [authUser, setAuthUser] = useState(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
-  const [activeSession, setActiveSession] = useState(null);
-  const [attendanceLogs, setAttendanceLogs] = useState([]);
-  const [apiConfig, setApiConfigState] = useState(null);
-  const [firstClockInToday, setFirstClockInToday] = useState(null);
-  const [todayCompletedSeconds, setTodayCompletedSeconds] = useState(0);
-
-  const [currentLocation, setCurrentLocation] = useState({
-    loading: true,
-    data: null,
-    error: null,
-  });
-
-  const [currentIpInfo, setCurrentIpInfo] = useState({
-    loading: true,
-    data: null,
-    error: null,
-  });
-
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [activeSession, setActiveSession] = useState(null);
   const [liveDuration, setLiveDuration] = useState(0);
+
+  const [attendanceLogs, setAttendanceLogs] = useState([]);
+  const [monthStats, setMonthStats] = useState({ presentDays: 0, absentDays: 0, totalHours: 0 });
 
   const timerRef = useRef(null);
 
-  const refreshTodayStats = async () => {
-    const firstIn = await getTodayFirstClockIn();
-    const completedSecs = await getTodayCompletedWorkSeconds();
-    setFirstClockInToday(firstIn);
-    setTodayCompletedSeconds(completedSecs);
-  };
+  // Refresh attendance data from server
+  const refreshAttendance = useCallback(async (userOverride) => {
+    const user = userOverride || authUser;
+    if (!user) return;
 
-  const syncWithServer = async (userParam, configParam) => {
     try {
-      const u = userParam || authUser;
-      const c = configParam || apiConfig;
-      if (!u) return;
-
-      const syncResult = await syncServerAttendance(u, c);
-      if (syncResult.isClockedIn && syncResult.session) {
-        setActiveSession(syncResult.session);
-      } else if (!syncResult.isClockedIn) {
+      // 1. Fetch live status
+      const statusData = await getAttendanceStatus(user.token, user.id).catch(() => null);
+      if (statusData?.is_clocked_in && statusData.active_session) {
+        setIsClockedIn(true);
+        setActiveSession({
+          id: statusData.active_session.id,
+          clockInTime: statusData.active_session.clock_in_time || statusData.active_session.created_at || new Date().toISOString(),
+        });
+      } else {
+        setIsClockedIn(false);
         setActiveSession(null);
       }
-      await refreshTodayStats();
-      return syncResult;
+
+      // 2. Fetch history
+      const historyData = await getAttendanceHistory(user.token, user.id);
+      const records = historyData.records || [];
+      setAttendanceLogs(records);
+      setMonthStats(calculateMonthStats(records));
     } catch (e) {
-      console.warn('syncWithServer error:', e);
+      console.warn('Failed to refresh attendance:', e);
     }
-  };
+  }, [authUser]);
 
+  // Initial Auth Check
   useEffect(() => {
-    async function initData() {
-      const user = await getAuthUser();
-      setAuthUser(user);
-
-      const config = await getApiConfig();
-      setApiConfigState(config);
-
-      const session = await getActiveSession();
-      setActiveSession(session);
-
-      const logs = await getAttendanceHistory();
-      setAttendanceLogs(logs);
-
-      await refreshTodayStats();
-      await refreshLocationAndIp();
-
-      // Automatically sync live active shift from server
-      if (user) {
-        syncWithServer(user, config);
+    async function init() {
+      try {
+        const user = await getAuthUser();
+        setAuthUser(user);
+        if (user) {
+          await refreshAttendance(user);
+        }
+      } finally {
+        setIsAuthLoading(false);
       }
     }
+    init();
+  }, [refreshAttendance]);
 
-    initData();
-  }, []);
-
+  // Client-side live timer (runs only when clocked in, NO polling)
   useEffect(() => {
-    if (activeSession && activeSession.clockInTime) {
-      const updateDuration = () => {
-        const startMs = new Date(activeSession.clockInTime).getTime();
-        const nowMs = Date.now();
-        const diffSeconds = Math.max(0, Math.floor((nowMs - startMs) / 1000));
-        setLiveDuration(diffSeconds);
+    if (isClockedIn && activeSession?.clockInTime) {
+      const startMs = new Date(activeSession.clockInTime).getTime();
+
+      const updateTimer = () => {
+        const diff = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+        setLiveDuration(diff);
       };
 
-      updateDuration();
-      timerRef.current = setInterval(updateDuration, 1000);
+      updateTimer();
+      timerRef.current = setInterval(updateTimer, 1000);
     } else {
       setLiveDuration(0);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -116,158 +93,112 @@ export function AttendanceProvider({ children }) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [activeSession]);
+  }, [isClockedIn, activeSession]);
 
-  const login = async (email, password) => {
-    setIsAuthLoading(true);
+  // Login handler
+  const login = async (identifier, password) => {
+    setIsActionLoading(true);
     try {
-      const user = await loginUser(email, password);
+      const user = await loginUser(identifier, password);
       setAuthUser(user);
-      // Auto sync shift state from backend immediately
-      await syncWithServer(user, apiConfig);
+      await refreshAttendance(user);
       return user;
-    } catch (err) {
-      throw err;
     } finally {
-      setIsAuthLoading(false);
+      setIsActionLoading(false);
     }
   };
 
+  // Logout handler
   const logout = async () => {
-    setIsAuthLoading(true);
+    setIsActionLoading(true);
     try {
-      await logoutUser();
+      await logoutUser(authUser?.token);
       setAuthUser(null);
+      setIsClockedIn(false);
       setActiveSession(null);
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      setIsAuthLoading(false);
-    }
-  };
-
-  const refreshLocationAndIp = async () => {
-    setCurrentLocation((prev) => ({ ...prev, loading: true, error: null }));
-    setCurrentIpInfo((prev) => ({ ...prev, loading: true, error: null }));
-
-    try {
-      const [loc, ip] = await Promise.all([getCurrentLocation(), getIpInfo()]);
-      setCurrentLocation({ loading: false, data: loc, error: loc.errorMsg || null });
-      setCurrentIpInfo({ loading: false, data: ip, error: ip.errorMsg || null });
-      return { location: loc, ip };
-    } catch (err) {
-      console.error('Error refreshing metrics:', err);
-      setCurrentLocation((prev) => ({ ...prev, loading: false, error: err.message }));
-      setCurrentIpInfo((prev) => ({ ...prev, loading: false, error: err.message }));
-      return null;
-    }
-  };
-
-  const handleClockIn = async (comment = '') => {
-    if (activeSession) {
-      throw new Error('You are already clocked in!');
-    }
-
-    setIsActionLoading(true);
-    try {
-      const metrics = await refreshLocationAndIp();
-      const locData = metrics?.location || currentLocation.data || await getCurrentLocation();
-      const ipData = metrics?.ip || currentIpInfo.data || await getIpInfo();
-
-      const result = await sendClockIn(locData, ipData, comment);
-      if (result.success) {
-        setActiveSession(result.session);
-        await refreshTodayStats();
-        return result;
-      }
-    } catch (err) {
-      console.error('Clock In Failed:', err);
-      throw err;
+      setLiveDuration(0);
+      setAttendanceLogs([]);
+      setMonthStats({ presentDays: 0, absentDays: 0, totalHours: 0 });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  const handleClockOut = async (comment = '') => {
-    if (!activeSession) {
-      throw new Error('No active clock-in session found!');
-    }
-
+  // Clock In handler
+  const handleClockIn = async () => {
+    if (isClockedIn) throw new Error('You are already clocked in.');
     setIsActionLoading(true);
-    try {
-      const metrics = await refreshLocationAndIp();
-      const locData = metrics?.location || currentLocation.data || await getCurrentLocation();
-      const ipData = metrics?.ip || currentIpInfo.data || await getIpInfo();
 
-      const result = await sendClockOut(activeSession, locData, ipData, comment);
-      if (result.success) {
-        setActiveSession(null);
-        setAttendanceLogs((prev) => [result.session, ...prev]);
-        await refreshTodayStats();
-        return result;
-      }
-    } catch (err) {
-      console.error('Clock Out Failed:', err);
-      throw err;
+    try {
+      const location = await getCurrentLocation();
+      const res = await clockIn(location, authUser?.token, authUser?.id);
+
+      const session = {
+        id: res.data?.id || `shift-${Date.now()}`,
+        clockInTime: res.data?.clock_in_time || new Date().toISOString(),
+      };
+
+      setActiveSession(session);
+      setIsClockedIn(true);
+      return session;
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  const updateApiConfig = async (newConfig) => {
-    const updated = { ...apiConfig, ...newConfig };
-    setApiConfigState(updated);
-    await saveApiConfig(updated);
+  // Clock Out handler
+  const handleClockOut = async () => {
+    if (!isClockedIn) throw new Error('No active clock-in session found.');
+    setIsActionLoading(true);
+
+    try {
+      const location = await getCurrentLocation();
+      await clockOut(location, authUser?.token, authUser?.id, activeSession?.id);
+
+      const now = new Date();
+      const durationSeconds = Math.max(
+        0,
+        Math.floor((now.getTime() - new Date(activeSession.clockInTime).getTime()) / 1000)
+      );
+
+      const newRecord = {
+        id: activeSession?.id || `shift-${Date.now()}`,
+        date: now.toISOString().split('T')[0],
+        clockInTime: activeSession.clockInTime,
+        clockOutTime: now.toISOString(),
+        durationSeconds,
+      };
+
+      const updatedRecords = await recordCompletedShift(newRecord);
+      setAttendanceLogs(updatedRecords);
+      setMonthStats(calculateMonthStats(updatedRecords));
+
+      setIsClockedIn(false);
+      setActiveSession(null);
+      setLiveDuration(0);
+      return newRecord;
+    } finally {
+      setIsActionLoading(false);
+    }
   };
-
-  const handleClearLogs = async () => {
-    await clearAttendanceHistory();
-    setAttendanceLogs([]);
-    setActiveSession(null);
-    setFirstClockInToday(null);
-    setTodayCompletedSeconds(0);
-    setLiveDuration(0);
-  };
-
-  const todayTotalDuration = todayCompletedSeconds + (activeSession ? liveDuration : 0);
-
-  // Check if current user has Admin privileges
-  // STRICT CHECK: only known admin email or phone — role not returned by API
-  const isAdmin = !!(
-    authUser &&
-    (authUser.email === 'admin@promiseasset.com' ||
-      authUser.email === 'admin@promiseassets.com' ||
-      authUser.role === 'admin' ||
-      authUser.role === 'Admin' ||
-      authUser.phone === '01700000000')
-  );
 
   return (
     <AttendanceContext.Provider
       value={{
         authUser,
         isAuthenticated: !!authUser,
-        isAdmin,
         isAuthLoading,
+        isActionLoading,
+        isClockedIn,
+        activeSession,
+        liveDuration,
+        attendanceLogs,
+        monthStats,
         login,
         logout,
-        isClockedIn: !!activeSession,
-        activeSession,
-        attendanceLogs,
-        currentLocation,
-        currentIpInfo,
-        apiConfig,
-        liveDuration,
-        todayCompletedSeconds,
-        todayTotalDuration,
-        firstClockInToday,
-        isActionLoading,
         handleClockIn,
         handleClockOut,
-        syncWithServer,
-        refreshLocationAndIp,
-        updateApiConfig,
-        handleClearLogs,
+        refreshAttendance,
       }}
     >
       {children}
@@ -278,7 +209,8 @@ export function AttendanceProvider({ children }) {
 export function useAttendance() {
   const context = useContext(AttendanceContext);
   if (!context) {
-    throw new Error('useAttendance must be used within an AttendanceProvider');
+    throw new Error('useAttendance must be used within AttendanceProvider');
   }
   return context;
 }
+

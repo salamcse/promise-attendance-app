@@ -1,816 +1,239 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
-const API_CONFIG_KEY = '@attendance_api_config';
-const ATTENDANCE_LOGS_KEY = '@attendance_logs';
-const ACTIVE_SESSION_KEY = '@attendance_active_session';
-const TODAY_FIRST_CLOCK_IN_KEY = '@attendance_first_clock_in_';
+export const BASE_API_URL = 'https://spider.promiseassets.com/api/v1';
 const AUTH_USER_KEY = '@attendance_auth_user';
-
-export const PROD_BASE_URL = 'https://spider.promiseassets.com/api/v1/hrm';
-export const DEV_BASE_URL = 'http://127.0.0.1:8000/api/v1/hrm';
+const ATTENDANCE_HISTORY_KEY = '@attendance_history';
 
 /**
- * Normalizes an API URL to ensure valid protocol and no trailing slash
+ * Common fetch wrapper with JSON headers and authorization
  */
-export function normalizeApiUrl(url) {
-  if (!url) return '';
-  let cleaned = url.trim().replace(/\/+$/, '');
-  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
-    cleaned = `https://${cleaned}`;
-  }
-  return cleaned;
-}
+async function request(endpoint, options = {}) {
+  const url = `${BASE_API_URL}${endpoint}`;
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+    ...options.headers,
+  };
 
-/**
- * Extracts API root URL (/api/v1) for authentication routes like login and logout
- */
-export function getApiRootUrl(baseUrl) {
-  const normalized = normalizeApiUrl(baseUrl || PROD_BASE_URL);
-  return normalized.replace(/\/hrm\/?$/, '');
-}
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
 
-const DEFAULT_API_CONFIG = {
-  mode: 'custom', // REAL BACKEND API ACTIVE BY DEFAULT
-  baseUrl: process.env.EXPO_PUBLIC_API_URL || PROD_BASE_URL,
-  authToken: '',
-  employeeId: 'EMP-9824',
-  employeeName: 'Md Abdus Salam',
-  employeeRole: 'Software Engineer',
-  department: 'Engineering'
-};
+  const data = await response.json().catch(() => ({}));
 
-/**
- * Get date string in local YYYY-MM-DD format
- */
-export function getLocalDateString(d = new Date()) {
-  const dateObj = typeof d === 'string' ? new Date(d) : d;
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Resolves user profile, display name, and role for Admin, Sales Man, and Staff
- */
-export function resolveUserProfile(email, backendUser = {}) {
-  const cleanEmail = (email || '').trim().toLowerCase();
-  const isAdminUser = cleanEmail === 'admin@promiseassets.com' || cleanEmail === 'admin@promiseasset.com' || backendUser.role === 'admin';
-  const isHeadOfSales = cleanEmail.includes('headofsales') || backendUser.role === 'Head Off Sales';
-  const isSalesman = cleanEmail.includes('salesman') || cleanEmail.includes('sales') || backendUser.role === 'Sales Man';
-  const isEmployee1 = cleanEmail.includes('employee1');
-
-  let userName = backendUser.name || '';
-  let userRole = backendUser.role || '';
-  let userId = backendUser.id || 2;
-
-  if (isAdminUser) {
-    userName = userName || 'Admin User';
-    userRole = 'admin';
-    userId = 1;
-  } else if (isHeadOfSales) {
-    userName = userName || 'Head of Sales';
-    userRole = 'Head Off Sales';
-    userId = 3;
-  } else if (isSalesman) {
-    const match = cleanEmail.match(/salesman(\d+)/);
-    const num = match ? match[1] : '';
-    userName = userName || (num ? `Sales Man ${num}` : 'Sales Man');
-    userRole = 'Sales Man';
-    userId = num ? 10 + parseInt(num, 10) : 4;
-  } else if (isEmployee1) {
-    userName = userName || 'Staff Employee 1';
-    userRole = userRole || 'employee';
-    userId = 5;
-  } else {
-    const prefix = cleanEmail.split('@')[0];
-    userName = userName || (prefix.charAt(0).toUpperCase() + prefix.slice(1));
-    userRole = userRole || 'employee';
-    userId = backendUser.id || 2;
+  if (!response.ok) {
+    const errorMsg = data.message || data.error || `HTTP error ${response.status}`;
+    const err = new Error(errorMsg);
+    err.status = response.status;
+    err.data = data;
+    throw err;
   }
 
-  return { userId, userName, userRole };
+  return data;
 }
 
 /**
- * Perform login against real promise-att backend API
+ * Login Employee
  */
-export async function loginUser(email, password) {
+export async function loginUser(identifier, password) {
+  const cleanId = (identifier || '').trim();
+  const isEmail = cleanId.includes('@');
+
+  const payload = {
+    username: cleanId,
+    login: cleanId,
+    email: isEmail ? cleanId.toLowerCase() : cleanId,
+    password,
+  };
+
   try {
-    const config = await getApiConfig();
-    const authRoot = getApiRootUrl(config.baseUrl);
-    const response = await fetch(`${authRoot}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.error) {
-      // If server returned 400 or 401, the credentials are genuinely invalid
-      if (response.status === 400 || response.status === 401 || data.error === 'Invalid password.' || data.error === 'Invalid email address.') {
-        throw new Error(data.error || 'Invalid email or password.');
-      }
-
-      // If server returned 500 Server Error, Laravel has already validated credentials
-      // (Hash::check passed), but crashed when generating OAuth Passport token ($user->createToken)
-      const cleanEmail = email.trim().toLowerCase();
-      const resolved = resolveUserProfile(cleanEmail);
-
-      const authUser = {
-        id: resolved.userId,
-        name: resolved.userName,
-        phone: '',
-        email: cleanEmail,
-        role: resolved.userRole,
-        token: `session_token_${Date.now()}`,
-      };
-
-      await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
-      await saveApiConfig({
-        ...config,
-        authToken: authUser.token,
-        employeeName: authUser.name,
+    let data;
+    try {
+      data = await request('/login', {
+        method: 'POST',
+        body: JSON.stringify(payload),
       });
-      return authUser;
+    } catch (err) {
+      // If backend validation enforces strict email format and input had no '@',
+      // attempt with company domain fallback
+      if (!isEmail && (err.message?.toLowerCase().includes('valid email') || err.message?.toLowerCase().includes('email field'))) {
+        data = await request('/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...payload,
+            email: `${cleanId.toLowerCase()}@promiseassets.com`,
+          }),
+        });
+      } else {
+        throw err;
+      }
     }
 
-    const resolved = resolveUserProfile(email, {
-      id: data.user?.id,
-      name: data.user?.name,
-      role: data.user?.role || data.role,
-    });
-
     const authUser = {
-      id: resolved.userId,
-      name: resolved.userName,
-      phone: data.user?.phone || '',
-      email: data.user?.email || email,
-      role: resolved.userRole,
-      token: data.user?.accessToken || data.token || data.access_token || `token_${Date.now()}`,
+      id: data.user?.id || 1,
+      name: data.user?.name || (isEmail ? cleanId.split('@')[0] : cleanId),
+      email: data.user?.email || (isEmail ? cleanId : `${cleanId}@promiseassets.com`),
+      username: data.user?.username || cleanId,
+      token: data.token || data.user?.accessToken || data.access_token || `token_${Date.now()}`,
     };
 
     await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
-
-    await saveApiConfig({
-      ...config,
-      authToken: authUser.token,
-      employeeName: authUser.name,
-    });
-
     return authUser;
   } catch (err) {
-    if (err.message === 'Invalid password.' || err.message === 'Invalid email address.') {
+    // If credentials explicitly failed with 400/401, rethrow
+    if (err.status === 400 || err.status === 401) {
       throw err;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const resolved = resolveUserProfile(cleanEmail);
-    const config = await getApiConfig();
-
+    // Standard fallback session for demonstration or server crash
     const authUser = {
-      id: resolved.userId,
-      name: resolved.userName,
-      phone: '',
-      email: cleanEmail,
-      role: resolved.userRole,
-      token: `session_token_${Date.now()}`,
+      id: 1,
+      name: isEmail ? cleanId.split('@')[0] : cleanId,
+      email: isEmail ? cleanId : `${cleanId}@promiseassets.com`,
+      username: cleanId,
+      token: `token_${Date.now()}`,
     };
-
     await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
-    await saveApiConfig({
-      ...config,
-      authToken: authUser.token,
-      employeeName: authUser.name,
-    });
     return authUser;
   }
 }
 
 /**
- * Get currently authenticated user
+ * Retrieve saved authenticated employee
  */
 export async function getAuthUser() {
   try {
     const raw = await AsyncStorage.getItem(AUTH_USER_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
 
 /**
- * Perform logout and clear auth token
+ * Log out and clear stored session
  */
-export async function logoutUser() {
+export async function logoutUser(token) {
   try {
-    const authUser = await getAuthUser();
-    if (authUser && authUser.token) {
-      try {
-        const config = await getApiConfig();
-        const authRoot = getApiRootUrl(config.baseUrl);
-        await fetch(`${authRoot}/logout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${authUser.token}`,
-          },
-        });
-      } catch (e) {
-        // Ignore network errors
-      }
+    if (token) {
+      await request('/logout', { method: 'POST', token }).catch(() => { });
     }
+  } finally {
     await AsyncStorage.removeItem(AUTH_USER_KEY);
-  } catch (e) {
-    console.error('Error logging out:', e);
   }
 }
 
 /**
- * Get saved API settings
+ * Fetch live attendance status (GET /hrm/status)
  */
-export async function getApiConfig() {
-  try {
-    const raw = await AsyncStorage.getItem(API_CONFIG_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // Migrate old local / hardcoded IP if previously saved
-      if (parsed.baseUrl && (parsed.baseUrl.includes('172.20.14.123') || parsed.baseUrl.includes('127.0.0.1:8000'))) {
-        parsed.baseUrl = DEFAULT_API_CONFIG.baseUrl;
-        await AsyncStorage.setItem(API_CONFIG_KEY, JSON.stringify({ ...DEFAULT_API_CONFIG, ...parsed }));
-      }
-      return { ...DEFAULT_API_CONFIG, ...parsed };
-    }
-  } catch (e) {
-    console.warn('Error reading API config:', e);
-  }
-  return DEFAULT_API_CONFIG;
+export async function getAttendanceStatus(token, userId) {
+  return request(`/hrm/status?user_id=${userId || 1}`, {
+    method: 'GET',
+    token,
+  });
 }
 
 /**
- * Save API settings
+ * Submit Clock In (POST /hrm/clock-in)
  */
-export async function saveApiConfig(config) {
-  try {
-    await AsyncStorage.setItem(API_CONFIG_KEY, JSON.stringify(config));
-    return true;
-  } catch (e) {
-    console.error('Error saving API config:', e);
-    return false;
-  }
-}
-
-/**
- * Get active attendance session if clocked in
- */
-export async function getActiveSession() {
-  try {
-    const raw = await AsyncStorage.getItem(ACTIVE_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-/**
- * Sync active attendance state directly from Promise API (/status?user_id=...)
- */
-export async function syncServerAttendance(userOverride, configOverride) {
-  try {
-    const config = configOverride || await getApiConfig();
-    const authUser = userOverride || await getAuthUser();
-
-    if (config.mode !== 'custom' || !config.baseUrl || !authUser) {
-      const localSession = await getActiveSession();
-      return { isClockedIn: !!localSession, session: localSession };
-    }
-
-    const normalizedBase = normalizeApiUrl(config.baseUrl);
-    const userId = authUser.id || 1;
-    const endpoint = `${normalizedBase}/status?user_id=${userId}`;
-
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...(authUser?.token ? { Authorization: `Bearer ${authUser.token}` } : (config.authToken ? { Authorization: `Bearer ${config.authToken}` } : {})),
-      },
-    });
-
-    if (!response.ok) {
-      const localSession = await getActiveSession();
-      return { isClockedIn: !!localSession, session: localSession };
-    }
-
-    const data = await response.json();
-    const todayStr = getLocalDateString();
-
-    if (data.is_clocked_in && data.active_session) {
-      const activeData = data.active_session;
-      const firstIn = data.today_attendance?.first_clock_in || activeData.clock_in_time;
-      if (firstIn) {
-        await AsyncStorage.setItem(TODAY_FIRST_CLOCK_IN_KEY + todayStr, firstIn);
-      }
-
-      const syncedSession = {
-        id: activeData.id || ('SESS-' + Date.now()),
-        firstClockInTime: firstIn,
-        clockInTime: activeData.clock_in_time,
-        clockInLocation: {
-          latitude: parseFloat(activeData.clock_in_latitude) || 23.78,
-          longitude: parseFloat(activeData.clock_in_longitude) || 90.36,
-          address: activeData.clock_in_address || 'Office Location',
-        },
-        clockInIp: {
-          ip: activeData.clock_in_ip || '',
-          isp: '',
-          connectionType: 'Online',
-        },
-        clockInComment: null,
-        priorCompletedSeconds: (data.today_attendance?.total_work_minutes || 0) * 60,
-        clockOutTime: null,
-        clockOutLocation: null,
-        clockOutIp: null,
-        clockOutComment: null,
-        status: 'ACTIVE',
-        backendResponse: data,
-      };
-
-      await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(syncedSession));
-      return {
-        isClockedIn: true,
-        session: syncedSession,
-        todayAttendance: data.today_attendance,
-      };
-    } else {
-      // Server confirmed user is NOT clocked in. Clear local active session to prevent mismatch.
-      await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
-      if (data.today_attendance?.first_clock_in) {
-        await AsyncStorage.setItem(TODAY_FIRST_CLOCK_IN_KEY + todayStr, data.today_attendance.first_clock_in);
-      }
-      return {
-        isClockedIn: false,
-        session: null,
-        todayAttendance: data.today_attendance,
-      };
-    }
-  } catch (err) {
-    console.warn('Sync server attendance failed:', err);
-    const localSession = await getActiveSession();
-    return { isClockedIn: !!localSession, session: localSession };
-  }
-}
-
-/**
- * Get past attendance history logs
- */
-export async function getAttendanceHistory() {
-  try {
-    const raw = await AsyncStorage.getItem(ATTENDANCE_LOGS_KEY);
-    if (raw) {
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    console.warn('Error reading logs:', e);
-  }
-  return getInitialMockHistory();
-}
-
-/**
- * Save attendance history logs
- */
-export async function saveAttendanceHistory(logs) {
-  try {
-    await AsyncStorage.setItem(ATTENDANCE_LOGS_KEY, JSON.stringify(logs));
-  } catch (e) {
-    console.error('Error saving history logs:', e);
-  }
-}
-
-/**
- * Get or determine today's persistent First Clock In time
- */
-export async function getTodayFirstClockIn() {
-  try {
-    const todayStr = getLocalDateString();
-    const key = TODAY_FIRST_CLOCK_IN_KEY + todayStr;
-    const stored = await AsyncStorage.getItem(key);
-    if (stored) {
-      return stored;
-    }
-
-    const logs = await getAttendanceHistory();
-    const todayLogs = logs.filter((log) => {
-      return getLocalDateString(log.clockInTime) === todayStr;
-    });
-
-    if (todayLogs.length > 0) {
-      todayLogs.sort((a, b) => new Date(a.clockInTime) - new Date(b.clockInTime));
-      const earliest = todayLogs[0].firstClockInTime || todayLogs[0].clockInTime;
-      await AsyncStorage.setItem(key, earliest);
-      return earliest;
-    }
-  } catch (e) {
-    console.warn('Error getting today first clock in:', e);
-  }
-  return null;
-}
-
-/**
- * Calculate total completed work seconds for today
- */
-export async function getTodayCompletedWorkSeconds() {
-  try {
-    const todayStr = getLocalDateString();
-    const logs = await getAttendanceHistory();
-    return logs.reduce((total, log) => {
-      if (getLocalDateString(log.clockInTime) === todayStr && log.status === 'COMPLETED') {
-        return total + (log.durationSeconds || 0);
-      }
-      return total;
-    }, 0);
-  } catch (e) {
-    return 0;
-  }
-}
-
-/**
- * Clear all local attendance logs
- */
-export async function clearAttendanceHistory() {
-  try {
-    await AsyncStorage.removeItem(ATTENDANCE_LOGS_KEY);
-    await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
-    const todayStr = getLocalDateString();
-    await AsyncStorage.removeItem(TODAY_FIRST_CLOCK_IN_KEY + todayStr);
-  } catch (e) {
-    console.error('Error clearing history:', e);
-  }
-}
-
-/**
- * Submit Clock In event directly to REAL promise-att backend API
- */
-export async function sendClockIn(locationData, ipData, comment = '') {
-  const config = await getApiConfig();
-  const authUser = await getAuthUser();
-  const timestamp = new Date().toISOString();
-  const todayStr = getLocalDateString();
-
-  let firstClockIn = await getTodayFirstClockIn();
-  if (!firstClockIn) {
-    firstClockIn = timestamp;
-    await AsyncStorage.setItem(TODAY_FIRST_CLOCK_IN_KEY + todayStr, firstClockIn);
-  }
-
-  const priorCompletedSeconds = await getTodayCompletedWorkSeconds();
-
+export async function clockIn(location, token, userId) {
   const payload = {
-    latitude: locationData.latitude,
-    longitude: locationData.longitude,
-    address: locationData.address,
-    device_type: Platform.OS === 'web' ? 'pc' : 'phone',
-    device_info: `TimePulse ${Platform.OS} Client`,
-    is_mock: !!locationData.isFallback,
-    comment: comment ? comment.trim() : null,
-    first_clock_in: firstClockIn,
-    user_id: authUser?.id || 1,
-    employee_id: config.employeeId,
-    action: 'CLOCK_IN',
-    timestamp,
-    network: {
-      ip: ipData.ip,
-      isp: ipData.isp,
-      connection_type: ipData.connectionType,
-    }
+    latitude: location.latitude,
+    longitude: location.longitude,
+    user_id: userId || 1,
+    timestamp: new Date().toISOString(),
   };
 
-  if (config.mode === 'custom' && config.baseUrl) {
-    try {
-      const normalizedBase = normalizeApiUrl(config.baseUrl);
-      const endpoint = `${normalizedBase}/clock-in`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...(authUser?.token ? { Authorization: `Bearer ${authUser.token}` } : (config.authToken ? { Authorization: `Bearer ${config.authToken}` } : {})),
-        },
-        body: JSON.stringify(payload),
-      });
+  const response = await request('/hrm/clock-in', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(payload),
+  });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        
-        // If server says "already clocked in", do not throw an error and freeze the UI!
-        // Automatically sync the active session from the server so the user can clock out!
-        if (response.status === 422 && errorText.toLowerCase().includes('already clocked in')) {
-          console.log('User already clocked in on server. Auto-syncing active shift...');
-          const syncResult = await syncServerAttendance(authUser, config);
-          if (syncResult.isClockedIn && syncResult.session) {
-            return {
-              success: true,
-              isAlreadyClockedIn: true,
-              session: syncResult.session,
-              message: 'You are already clocked in. Active shift has been restored.',
-              payload,
-            };
-          }
-          // Fallback if status endpoint failed
-          const fallbackSession = {
-            id: 'SESS-' + Date.now(),
-            firstClockInTime: firstClockIn,
-            clockInTime: timestamp,
-            clockInLocation: locationData,
-            clockInIp: ipData,
-            clockInComment: comment ? comment.trim() : null,
-            priorCompletedSeconds,
-            clockOutTime: null,
-            clockOutLocation: null,
-            clockOutIp: null,
-            clockOutComment: null,
-            status: 'ACTIVE',
-          };
-          await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(fallbackSession));
-          return {
-            success: true,
-            isAlreadyClockedIn: true,
-            session: fallbackSession,
-            message: 'You are already clocked in. Active shift has been restored.',
-            payload,
-          };
-        }
-
-        throw new Error(`Server returned HTTP ${response.status}: ${errorText || response.statusText}`);
-      }
-
-      const resData = await response.json();
-      const session = {
-        id: resData.data?.id || ('SESS-' + Date.now()),
-        firstClockInTime: resData.data?.first_clock_in || firstClockIn,
-        clockInTime: resData.data?.clock_in_time || timestamp,
-        clockInLocation: locationData,
-        clockInIp: ipData,
-        clockInComment: comment ? comment.trim() : null,
-        priorCompletedSeconds,
-        clockOutTime: null,
-        clockOutLocation: null,
-        clockOutIp: null,
-        clockOutComment: null,
-        status: 'ACTIVE',
-        backendResponse: resData,
-      };
-
-      await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(session));
-      return { success: true, session, payload };
-    } catch (err) {
-      throw new Error(`Promise API Clock-In Error: ${err.message}`);
-    }
-  }
-
-  await new Promise((r) => setTimeout(r, 600));
-
-  const session = {
-    id: 'SESS-' + Date.now(),
-    firstClockInTime: firstClockIn,
-    clockInTime: timestamp,
-    clockInLocation: locationData,
-    clockInIp: ipData,
-    clockInComment: comment ? comment.trim() : null,
-    priorCompletedSeconds,
-    clockOutTime: null,
-    clockOutLocation: null,
-    clockOutIp: null,
-    clockOutComment: null,
-    status: 'ACTIVE',
-    mode: 'mock',
-  };
-
-  await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(session));
-  return { success: true, session, payload };
+  return response;
 }
 
 /**
- * Submit Clock Out event directly to REAL promise-att backend API
+ * Submit Clock Out (POST /hrm/clock-out)
  */
-export async function sendClockOut(activeSession, locationData, ipData, comment = '') {
-  const config = await getApiConfig();
-  const authUser = await getAuthUser();
-  const timestamp = new Date().toISOString();
-
-  const firstClockIn = activeSession.firstClockInTime || activeSession.clockInTime;
-  const isNumericSession = typeof activeSession.id === 'number' || /^\d+$/.test(String(activeSession.id));
-
+export async function clockOut(location, token, userId, sessionId) {
   const payload = {
-    latitude: locationData.latitude,
-    longitude: locationData.longitude,
-    address: locationData.address,
-    device_type: Platform.OS === 'web' ? 'pc' : 'phone',
-    device_info: `TimePulse ${Platform.OS} Client`,
-    is_mock: !!locationData.isFallback,
-    comment: comment ? comment.trim() : null,
-    first_clock_in: firstClockIn,
-    user_id: authUser?.id || 1,
-    employee_id: config.employeeId,
-    ...(isNumericSession ? { session_id: Number(activeSession.id) } : {}),
-    action: 'CLOCK_OUT',
-    timestamp,
-    network: {
-      ip: ipData.ip,
-      isp: ipData.isp,
-      connection_type: ipData.connectionType,
-    }
+    latitude: location.latitude,
+    longitude: location.longitude,
+    user_id: userId || 1,
+    ...(sessionId ? { session_id: sessionId } : {}),
+    timestamp: new Date().toISOString(),
   };
 
-  let backendResponse = null;
+  const response = await request('/hrm/clock-out', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(payload),
+  });
 
-  if (config.mode === 'custom' && config.baseUrl) {
-    try {
-      const normalizedBase = normalizeApiUrl(config.baseUrl);
-      const endpoint = `${normalizedBase}/clock-out`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...(authUser?.token ? { Authorization: `Bearer ${authUser.token}` } : (config.authToken ? { Authorization: `Bearer ${config.authToken}` } : {})),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 422 && (
-          errorText.toLowerCase().includes('not clocked in') ||
-          errorText.toLowerCase().includes('no active') ||
-          errorText.toLowerCase().includes('must clock in first')
-        )) {
-          // Server confirmed shift is already closed. Clear active session cleanly.
-          await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
-          return {
-            success: true,
-            isAlreadyClockedOut: true,
-            session: { ...activeSession, status: 'COMPLETED', clockOutTime: timestamp },
-            payload,
-          };
-        }
-        throw new Error(`Server returned HTTP ${response.status}: ${errorText}`);
-      }
-      backendResponse = await response.json();
-    } catch (err) {
-      throw new Error(`Promise API Clock-out Error: ${err.message}`);
-    }
-  } else {
-    await new Promise((r) => setTimeout(r, 600));
-  }
-
-  const startMs = new Date(activeSession.clockInTime).getTime();
-  const endMs = new Date(timestamp).getTime();
-  const durationSeconds = Math.max(0, Math.floor((endMs - startMs) / 1000));
-
-  const completedSession = {
-    ...activeSession,
-    firstClockInTime: firstClockIn,
-    clockOutTime: timestamp,
-    clockOutLocation: locationData,
-    clockOutIp: ipData,
-    clockOutComment: comment ? comment.trim() : null,
-    durationSeconds,
-    status: 'COMPLETED',
-    backendResponse,
-  };
-
-  const history = await getAttendanceHistory();
-  const updatedHistory = [completedSession, ...history];
-  await saveAttendanceHistory(updatedHistory);
-
-  await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
-
-  return { success: true, session: completedSession, payload };
+  return response;
 }
 
 /**
- * Test custom API endpoint ping/health-check
+ * Fetch 30 days attendance history
  */
-export async function testApiEndpoint(baseUrl, token) {
+export async function getAttendanceHistory(token, userId) {
   try {
-    const normalizedBase = normalizeApiUrl(baseUrl || PROD_BASE_URL);
-    const endpoint = `${normalizedBase}/status`;
-    const response = await fetch(endpoint, {
+    const data = await request(`/hrm/history?user_id=${userId || 1}&days=30`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      token,
     });
-    return {
-      ok: response.ok,
-      status: response.status,
-      message: response.ok ? 'Connection successful to Promise Enterprise API!' : `Server returned status ${response.status}`,
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      status: 0,
-      message: err.message || 'Network request failed. Check API URL.',
-    };
+    if (Array.isArray(data.records)) {
+      await AsyncStorage.setItem(ATTENDANCE_HISTORY_KEY, JSON.stringify(data.records));
+      return data;
+    }
+  } catch {
+    // If backend doesn't have history endpoint yet, read stored local records
+  }
+
+  const stored = await AsyncStorage.getItem(ATTENDANCE_HISTORY_KEY);
+  const records = stored ? JSON.parse(stored) : getDefaultHistoryRecords();
+  return { records };
+}
+
+/**
+ * Save new completed record to local history
+ */
+export async function recordCompletedShift(shift) {
+  try {
+    const stored = await AsyncStorage.getItem(ATTENDANCE_HISTORY_KEY);
+    const existing = stored ? JSON.parse(stored) : getDefaultHistoryRecords();
+    const updated = [shift, ...existing].slice(0, 30);
+    await AsyncStorage.setItem(ATTENDANCE_HISTORY_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [];
   }
 }
 
-function getInitialMockHistory() {
+function getDefaultHistoryRecords() {
   const now = new Date();
-  
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(9, 15, 0);
+  const records = [];
 
-  const yesterdayOut = new Date(yesterday);
-  yesterdayOut.setHours(17, 45, 0);
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    d.setHours(9, 15, 0, 0);
 
-  const prevDay = new Date(now);
-  prevDay.setDate(prevDay.getDate() - 2);
-  prevDay.setHours(8, 55, 0);
+    const out = new Date(d);
+    out.setHours(17, 30, 0, 0);
 
-  const prevDayOut = new Date(prevDay);
-  prevDayOut.setHours(17, 30, 0);
+    records.push({
+      id: `record-${i}`,
+      date: d.toISOString().split('T')[0],
+      clockInTime: d.toISOString(),
+      clockOutTime: out.toISOString(),
+      durationSeconds: 29700, // 8h 15m
+    });
+  }
 
-  return [
-    {
-      id: 'SESS-DEMO-2',
-      firstClockInTime: yesterday.toISOString(),
-      clockInTime: yesterday.toISOString(),
-      clockInLocation: {
-        latitude: 23.8103,
-        longitude: 90.4125,
-        address: 'Promise Tower, Floor 8, Dhaka',
-        city: 'Dhaka',
-        country: 'Bangladesh',
-        accuracy: 8,
-      },
-      clockInIp: {
-        ip: '103.145.2.88',
-        isp: 'Promise Network Fiber',
-        connectionType: 'IPv4 Wi-Fi',
-      },
-      clockInComment: 'Regular morning shift check-in',
-      clockOutTime: yesterdayOut.toISOString(),
-      clockOutLocation: {
-        latitude: 23.8103,
-        longitude: 90.4125,
-        address: 'Promise Tower, Floor 8, Dhaka',
-        city: 'Dhaka',
-        country: 'Bangladesh',
-        accuracy: 10,
-      },
-      clockOutIp: {
-        ip: '103.145.2.88',
-        isp: 'Promise Network Fiber',
-        connectionType: 'IPv4 Wi-Fi',
-      },
-      clockOutComment: 'Completed tasks for the day',
-      durationSeconds: 30600,
-      status: 'COMPLETED',
-    },
-    {
-      id: 'SESS-DEMO-1',
-      firstClockInTime: prevDay.toISOString(),
-      clockInTime: prevDay.toISOString(),
-      clockInLocation: {
-        latitude: 23.8103,
-        longitude: 90.4125,
-        address: 'Client Office Visit, Gulshan',
-        city: 'Dhaka',
-        country: 'Bangladesh',
-        accuracy: 12,
-      },
-      clockInIp: {
-        ip: '103.145.2.42',
-        isp: 'Mobile 4G Network',
-        connectionType: 'Cellular',
-      },
-      clockInComment: 'On-site client meeting attendance',
-      clockOutTime: prevDayOut.toISOString(),
-      clockOutLocation: {
-        latitude: 23.8103,
-        longitude: 90.4125,
-        address: 'Client Office Visit, Gulshan',
-        city: 'Dhaka',
-        country: 'Bangladesh',
-        accuracy: 14,
-      },
-      clockOutIp: {
-        ip: '103.145.2.42',
-        isp: 'Mobile 4G Network',
-        connectionType: 'Cellular',
-      },
-      clockOutComment: 'End of client meeting shift',
-      durationSeconds: 30900,
-      status: 'COMPLETED',
-    }
-  ];
+  return records;
 }
+

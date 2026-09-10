@@ -1,24 +1,24 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
-import { Lock, Mail, LogIn, Clock, ShieldCheck } from 'lucide-react-native';
+import { Lock, User, LogIn, Clock } from 'lucide-react-native';
 
 export default function LoginScreen() {
-  const { login, isAuthLoading } = useAttendance();
+  const { login, isActionLoading } = useAttendance();
 
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const handleLoginSubmit = async () => {
-    if (!email || !password) {
-      setErrorMsg('Please enter your email and password.');
+  const handleSubmit = async () => {
+    if (!username.trim() || !password.trim()) {
+      setErrorMsg('Please enter your username and password.');
       return;
     }
 
     setErrorMsg(null);
     try {
-      await login(email, password);
+      await login(username, password);
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check credentials.');
     }
@@ -27,42 +27,41 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        {/* Brand Logo Header */}
-        <View style={styles.brandGroup}>
+        {/* Brand Header */}
+        <View style={styles.brand}>
           <View style={styles.iconCircle}>
-            <Clock size={32} color="#6366F1" />
+            <Clock size={28} color="#6366F1" />
           </View>
-          <Text style={styles.brandTitle}>TimePulse</Text>
-          <Text style={styles.brandSub}>Promise Attendance System</Text>
+          <Text style={styles.title}>Promise Attendance</Text>
+          <Text style={styles.subtitle}>Employee Client</Text>
         </View>
 
-        {/* Form Inputs */}
-        <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Email Address</Text>
+        {/* Inputs */}
+        <View style={styles.form}>
+          <Text style={styles.label}>Username or Email</Text>
           <View style={styles.inputWrapper}>
-            <Mail size={18} color="#94A3B8" style={{ marginRight: 10 }} />
+            <User size={16} color="#94A3B8" style={{ marginRight: 10 }} />
             <TextInput
               style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="name@company.com"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Enter username or email"
               placeholderTextColor="#64748B"
-              keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
           </View>
 
-          <Text style={styles.inputLabel}>Password</Text>
+          <Text style={styles.label}>Password</Text>
           <View style={styles.inputWrapper}>
-            <Lock size={18} color="#94A3B8" style={{ marginRight: 10 }} />
+            <Lock size={16} color="#94A3B8" style={{ marginRight: 10 }} />
             <TextInput
               style={styles.input}
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
               placeholderTextColor="#64748B"
-              secureTextEntry={true}
+              secureTextEntry
             />
           </View>
 
@@ -72,100 +71,85 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Submit Action Button */}
+          {/* Login Button */}
           <TouchableOpacity
-            style={[styles.loginBtn, isAuthLoading && styles.btnDisabled]}
-            onPress={handleLoginSubmit}
-            disabled={isAuthLoading}
-            activeOpacity={0.85}
+            style={[styles.loginBtn, isActionLoading && styles.btnDisabled]}
+            onPress={handleSubmit}
+            disabled={isActionLoading}
+            activeOpacity={0.8}
           >
-            {isAuthLoading ? (
+            {isActionLoading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <View style={styles.btnContent}>
-                <LogIn size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.loginBtnText}>LOGIN TO TIMEPULSE</Text>
+                <LogIn size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.loginBtnText}>LOGIN</Text>
               </View>
             )}
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.footerInfo}>
-          <ShieldCheck size={14} color="#10B981" style={{ marginRight: 6 }} />
-          <Text style={styles.footerText}>
-            Secured by Promise Enterprise API (spider.promiseassets.com)
-          </Text>
         </View>
       </View>
     </View>
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
-    alignItems: 'center',
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   card: {
     width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#0F172A',
-    borderRadius: 24,
+    maxWidth: 400,
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 8,
+    borderColor: '#334155',
   },
-  brandGroup: {
+  brand: {
     alignItems: 'center',
     marginBottom: 24,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    backgroundColor: '#1E1B4B',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#312E81',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: '#3730A3',
   },
-  brandTitle: {
-    fontSize: 26,
-    fontWeight: '900',
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
     color: '#F8FAFC',
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
-  brandSub: {
-    fontSize: 12,
+  subtitle: {
+    fontSize: 13,
     color: '#94A3B8',
     marginTop: 2,
     fontWeight: '500',
   },
-  formGroup: {
-    gap: 8,
+  form: {
+    gap: 10,
   },
-  inputLabel: {
+  label: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#CBD5E1',
-    marginTop: 8,
+    marginTop: 4,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#0F172A',
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: '#334155',
@@ -178,8 +162,8 @@ const styles = StyleSheet.create({
   errorBox: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
     padding: 10,
-    borderRadius: 10,
-    marginTop: 8,
+    borderRadius: 8,
+    marginTop: 6,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
@@ -190,11 +174,11 @@ const styles = StyleSheet.create({
   },
   loginBtn: {
     backgroundColor: '#6366F1',
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 14,
   },
   btnDisabled: {
     opacity: 0.7,
@@ -208,15 +192,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.5,
-  },
-  footerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  footerText: {
-    fontSize: 11,
-    color: '#64748B',
   },
 });
