@@ -1,182 +1,150 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useAttendance } from '../context/AttendanceContext';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import PrimaryButton from './PrimaryButton';
 
-export default function StatusCard() {
-  const {
-    isClockedIn,
-    liveDuration,
-    isActionLoading,
-    handleClockIn,
-    handleClockOut,
-  } = useAttendance();
-
-  const [errorMsg, setErrorMsg] = useState(null);
-
-  const formatTime = (totalSec) => {
-    const hrs = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
-  };
-
-  const handleAction = async () => {
-    setErrorMsg(null);
-    try {
-      if (isClockedIn) {
-        await handleClockOut();
-      } else {
-        await handleClockIn();
-      }
-    } catch (err) {
-      setErrorMsg(err.message || 'Operation failed. Please try again.');
-    }
-  };
-
+export default function StatusCard({
+  isClockedIn = false,
+  formattedTimer = '00:00:00',
+  isSubmitting = false,
+  onClockIn,
+  onClockOut,
+  actionError = null,
+}) {
   return (
-    <View style={[styles.card, isClockedIn ? styles.cardClockedIn : styles.cardClockedOut]}>
+    <View
+      style={[
+        styles.card,
+        isClockedIn ? styles.cardClockedIn : styles.cardClockedOut,
+      ]}
+    >
       {/* State Badge */}
-      <View style={[styles.badge, isClockedIn ? styles.badgeClockedIn : styles.badgeClockedOut]}>
-        <View style={[styles.dot, isClockedIn ? styles.dotGreen : styles.dotGray]} />
-        <Text style={[styles.badgeText, isClockedIn ? styles.textGreen : styles.textGray]}>
+      <View
+        style={[
+          styles.badge,
+          isClockedIn ? styles.badgeClockedIn : styles.badgeClockedOut,
+        ]}
+      >
+        <View
+          style={[
+            styles.dot,
+            isClockedIn ? styles.dotGreen : styles.dotGray,
+          ]}
+        />
+        <Text
+          style={[
+            styles.badgeText,
+            isClockedIn ? styles.textGreen : styles.textGray,
+          ]}
+        >
           {isClockedIn ? 'WORKING' : 'NOT CLOCKED IN'}
         </Text>
       </View>
 
-      {/* Timer */}
-      <Text style={styles.timerText}>{formatTime(liveDuration)}</Text>
+      {/* Stopwatch Display */}
+      <Text style={styles.timerText}>{formattedTimer}</Text>
 
-      {/* Error Message */}
-      {errorMsg && (
+      {/* Inline Action Error Message */}
+      {Boolean(actionError) && (
         <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{errorMsg}</Text>
+          <Text style={styles.errorText}>{actionError}</Text>
         </View>
       )}
 
       {/* Action Button */}
-      <TouchableOpacity
-        style={[
-          styles.actionBtn,
-          isClockedIn ? styles.btnClockOut : styles.btnClockIn,
-          isActionLoading && styles.btnDisabled,
-        ]}
-        onPress={handleAction}
-        disabled={isActionLoading}
-        activeOpacity={0.8}
-      >
-        {isActionLoading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
-        ) : (
-          <Text style={styles.actionBtnText}>
-            {isClockedIn ? 'CHECK OUT' : 'CHECK IN'}
-          </Text>
-        )}
-      </TouchableOpacity>
+      <PrimaryButton
+        title={isClockedIn ? 'CHECK OUT' : 'CHECK IN'}
+        onPress={isClockedIn ? onClockOut : onClockIn}
+        loading={isSubmitting}
+        disabled={isSubmitting}
+        variant={isClockedIn ? 'danger' : 'primary'}
+        style={styles.actionBtn}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xxl,
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 20,
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.xl,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: COLORS.border,
   },
   cardClockedIn: {
-    borderColor: '#059669',
-    backgroundColor: '#0F291E',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    backgroundColor: 'rgba(16, 185, 129, 0.04)',
   },
   cardClockedOut: {
-    borderColor: '#334155',
-    backgroundColor: '#1E293B',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 16,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: RADIUS.full,
+    marginBottom: SPACING.lg,
   },
   badgeClockedIn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: COLORS.successBg,
   },
   badgeClockedOut: {
-    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+    backgroundColor: 'rgba(167, 176, 192, 0.1)',
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 8,
+    marginRight: SPACING.sm,
   },
   dotGreen: {
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.success,
   },
   dotGray: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: COLORS.textMuted,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   textGreen: {
-    color: '#34D399',
+    color: COLORS.success,
   },
   textGray: {
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
   },
   timerText: {
-    fontSize: 44,
+    fontSize: 42,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: COLORS.text,
     fontVariant: ['tabular-nums'],
     letterSpacing: 2,
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: COLORS.dangerBg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    marginBottom: SPACING.lg,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
     width: '100%',
   },
   errorText: {
-    color: '#F87171',
+    color: '#FCA5A5',
     fontSize: 12,
     textAlign: 'center',
     fontWeight: '500',
   },
   actionBtn: {
     width: '100%',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnClockIn: {
-    backgroundColor: '#6366F1',
-  },
-  btnClockOut: {
-    backgroundColor: '#EF4444',
-  },
-  btnDisabled: {
-    opacity: 0.7,
-  },
-  actionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 1,
   },
 });

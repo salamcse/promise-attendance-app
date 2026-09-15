@@ -1,28 +1,28 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useAttendance } from '../context/AttendanceContext';
+import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
-export default function SummaryStats() {
-  const { monthStats } = useAttendance();
+export default function SummaryStats({ stats = { presentDays: 0, absentDays: 0, totalHours: 0 } }) {
+  const { presentDays = 0, absentDays = 0, totalHours = 0 } = stats;
 
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={[styles.val, styles.valPresent]}>{monthStats.presentDays}</Text>
+        <Text style={[styles.val, styles.valPresent]}>{presentDays}</Text>
         <Text style={styles.label}>Present</Text>
       </View>
 
       <View style={styles.divider} />
 
       <View style={styles.card}>
-        <Text style={[styles.val, styles.valAbsent]}>{monthStats.absentDays}</Text>
+        <Text style={[styles.val, styles.valAbsent]}>{absentDays}</Text>
         <Text style={styles.label}>Absent</Text>
       </View>
 
       <View style={styles.divider} />
 
       <View style={styles.card}>
-        <Text style={[styles.val, styles.valHours]}>{monthStats.totalHours}h</Text>
+        <Text style={[styles.val, styles.valHours]}>{totalHours}h</Text>
         <Text style={styles.label}>Hours</Text>
       </View>
     </View>
@@ -33,14 +33,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    marginHorizontal: 20,
-    marginTop: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.lg,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: COLORS.border,
   },
   card: {
     flex: 1,
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 36,
-    backgroundColor: '#334155',
+    backgroundColor: COLORS.border,
   },
   val: {
     fontSize: 22,
@@ -59,17 +59,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   valPresent: {
-    color: '#10B981',
+    color: COLORS.success,
   },
   valAbsent: {
-    color: '#F43F5E',
+    color: COLORS.danger,
   },
   valHours: {
-    color: '#6366F1',
+    color: COLORS.primary,
   },
   label: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     fontWeight: '600',
   },
 });

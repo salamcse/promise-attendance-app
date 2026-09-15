@@ -1,204 +1,190 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { getCurrentLocation } from '../services/locationService';
-import {
-  getAuthUser,
-  loginUser,
-  logoutUser,
-  getAttendanceStatus,
-  clockIn,
-  clockOut,
-  getAttendanceHistory,
-  recordCompletedShift,
-} from '../services/apiService';
-import { calculateMonthStats } from '../services/attendanceUtils';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth } from './AuthContext';
+import * as attendanceService from '../features/attendance/attendanceService';
+import { calculateAttendanceStats } from '../features/attendance/attendanceUtils';
+import * as locationService from '../services/locationService';
+import { getErrorMessage } from '../utils/errorUtils';
 
-const AttendanceContext = createContext();
+const AttendanceContext = createContext(null);
 
 export function AttendanceProvider({ children }) {
-  const [authUser, setAuthUser] = useState(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [isActionLoading, setIsActionLoading] = useState(false);
+  const { user, token, logout } = useAuth();
 
-  const [isClockedIn, setIsClockedIn] = useState(false);
+  // Core State: activeSession is the single source of truth for clock status
   const [activeSession, setActiveSession] = useState(null);
-  const [liveDuration, setLiveDuration] = useState(0);
-
   const [attendanceLogs, setAttendanceLogs] = useState([]);
-  const [monthStats, setMonthStats] = useState({ presentDays: 0, absentDays: 0, totalHours: 0 });
+  const [attendanceStats, setAttendanceStats] = useState({
+    presentDays: 0,
+    absentDays: 0,
+    totalHours: 0,
+  });
 
-  const timerRef = useRef(null);
+  // UI / Status States
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [screenError, setScreenError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
-  // Refresh attendance data from server
-  const refreshAttendance = useCallback(async (userOverride) => {
-    const user = userOverride || authUser;
-    if (!user) return;
+  // Synchronous double-tap lock
+  const isSubmittingRef = useRef(false);
 
+  // Fetch live status from backend
+  const fetchStatus = useCallback(async () => {
+    if (!token || !user?.id) return;
     try {
-      // 1. Fetch live status
-      const statusData = await getAttendanceStatus(user.token, user.id).catch(() => null);
-      if (statusData?.is_clocked_in && statusData.active_session) {
-        setIsClockedIn(true);
-        setActiveSession({
-          id: statusData.active_session.id,
-          clockInTime: statusData.active_session.clock_in_time || statusData.active_session.created_at || new Date().toISOString(),
-        });
-      } else {
-        setIsClockedIn(false);
-        setActiveSession(null);
+      const statusData = await attendanceService.getAttendanceStatus(token, user.id);
+      setActiveSession(statusData.activeSession);
+      return statusData;
+    } catch (err) {
+      if (err.status === 401 || err.code === 'AUTH_ERROR') {
+        await logout();
+        return;
       }
+      throw err;
+    }
+  }, [token, user?.id, logout]);
 
-      // 2. Fetch history
-      const historyData = await getAttendanceHistory(user.token, user.id);
+  // Fetch 30-day history from backend
+  const fetchHistory = useCallback(async () => {
+    if (!token || !user?.id) return;
+    try {
+      const historyData = await attendanceService.getAttendanceHistory(token, user.id, 30);
       const records = historyData.records || [];
       setAttendanceLogs(records);
-      setMonthStats(calculateMonthStats(records));
-    } catch (e) {
-      console.warn('Failed to refresh attendance:', e);
+      setAttendanceStats(calculateAttendanceStats(records));
+      return records;
+    } catch (err) {
+      if (err.status === 401 || err.code === 'AUTH_ERROR') {
+        await logout();
+        return;
+      }
+      throw err;
     }
-  }, [authUser]);
+  }, [token, user?.id, logout]);
 
-  // Initial Auth Check
+  // Full refresh (status + history)
+  const refreshAttendance = useCallback(async () => {
+    setIsRefreshing(true);
+    setScreenError(null);
+    try {
+      await Promise.all([fetchStatus(), fetchHistory()]);
+    } catch (err) {
+      setScreenError(getErrorMessage(err));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchStatus, fetchHistory]);
+
+  // Initial load on mount or when user changes
   useEffect(() => {
-    async function init() {
+    let isMounted = true;
+
+    async function loadData() {
+      setIsLoading(true);
+      setScreenError(null);
       try {
-        const user = await getAuthUser();
-        setAuthUser(user);
-        if (user) {
-          await refreshAttendance(user);
+        await Promise.all([fetchStatus(), fetchHistory()]);
+      } catch (err) {
+        if (isMounted) {
+          setScreenError(getErrorMessage(err));
         }
       } finally {
-        setIsAuthLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
-    init();
-  }, [refreshAttendance]);
 
-  // Client-side live timer (runs only when clocked in, NO polling)
-  useEffect(() => {
-    if (isClockedIn && activeSession?.clockInTime) {
-      const startMs = new Date(activeSession.clockInTime).getTime();
-
-      const updateTimer = () => {
-        const diff = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
-        setLiveDuration(diff);
-      };
-
-      updateTimer();
-      timerRef.current = setInterval(updateTimer, 1000);
-    } else {
-      setLiveDuration(0);
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (user?.id) {
+      loadData();
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      isMounted = false;
     };
-  }, [isClockedIn, activeSession]);
-
-  // Login handler
-  const login = async (identifier, password) => {
-    setIsActionLoading(true);
-    try {
-      const user = await loginUser(identifier, password);
-      setAuthUser(user);
-      await refreshAttendance(user);
-      return user;
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  // Logout handler
-  const logout = async () => {
-    setIsActionLoading(true);
-    try {
-      await logoutUser(authUser?.token);
-      setAuthUser(null);
-      setIsClockedIn(false);
-      setActiveSession(null);
-      setLiveDuration(0);
-      setAttendanceLogs([]);
-      setMonthStats({ presentDays: 0, absentDays: 0, totalHours: 0 });
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
+  }, [user?.id, fetchStatus, fetchHistory]);
 
   // Clock In handler
-  const handleClockIn = async () => {
-    if (isClockedIn) throw new Error('You are already clocked in.');
-    setIsActionLoading(true);
+  const handleClockIn = useCallback(async () => {
+    if (isSubmittingRef.current) return;
+    if (activeSession) {
+      setActionError('You are already clocked in.');
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setActionError(null);
 
     try {
-      const location = await getCurrentLocation();
-      const res = await clockIn(location, authUser?.token, authUser?.id);
+      const location = await locationService.getCurrentLocation();
+      await attendanceService.clockIn(location, token, user?.id);
 
-      const session = {
-        id: res.data?.id || `shift-${Date.now()}`,
-        clockInTime: res.data?.clock_in_time || new Date().toISOString(),
-      };
-
-      setActiveSession(session);
-      setIsClockedIn(true);
-      return session;
+      // Canonical server sync
+      await fetchStatus();
+      fetchHistory().catch(() => {});
+    } catch (err) {
+      if (err.status === 401 || err.code === 'AUTH_ERROR') {
+        await logout();
+        return;
+      }
+      setActionError(getErrorMessage(err));
+      throw err;
     } finally {
-      setIsActionLoading(false);
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
-  };
+  }, [activeSession, token, user?.id, fetchStatus, fetchHistory, logout]);
 
   // Clock Out handler
-  const handleClockOut = async () => {
-    if (!isClockedIn) throw new Error('No active clock-in session found.');
-    setIsActionLoading(true);
+  const handleClockOut = useCallback(async () => {
+    if (isSubmittingRef.current) return;
+    if (!activeSession) {
+      setActionError('No active clock-in session found.');
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setActionError(null);
 
     try {
-      const location = await getCurrentLocation();
-      await clockOut(location, authUser?.token, authUser?.id, activeSession?.id);
+      const location = await locationService.getCurrentLocation();
+      await attendanceService.clockOut(location, token, user?.id, activeSession?.id);
 
-      const now = new Date();
-      const durationSeconds = Math.max(
-        0,
-        Math.floor((now.getTime() - new Date(activeSession.clockInTime).getTime()) / 1000)
-      );
-
-      const newRecord = {
-        id: activeSession?.id || `shift-${Date.now()}`,
-        date: now.toISOString().split('T')[0],
-        clockInTime: activeSession.clockInTime,
-        clockOutTime: now.toISOString(),
-        durationSeconds,
-      };
-
-      const updatedRecords = await recordCompletedShift(newRecord);
-      setAttendanceLogs(updatedRecords);
-      setMonthStats(calculateMonthStats(updatedRecords));
-
-      setIsClockedIn(false);
-      setActiveSession(null);
-      setLiveDuration(0);
-      return newRecord;
+      // Canonical server sync
+      await fetchStatus();
+      fetchHistory().catch(() => {});
+    } catch (err) {
+      if (err.status === 401 || err.code === 'AUTH_ERROR') {
+        await logout();
+        return;
+      }
+      setActionError(getErrorMessage(err));
+      throw err;
     } finally {
-      setIsActionLoading(false);
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
-  };
+  }, [activeSession, token, user?.id, fetchStatus, fetchHistory, logout]);
 
   return (
     <AttendanceContext.Provider
       value={{
-        authUser,
-        isAuthenticated: !!authUser,
-        isAuthLoading,
-        isActionLoading,
-        isClockedIn,
         activeSession,
-        liveDuration,
+        isClockedIn: Boolean(activeSession),
         attendanceLogs,
-        monthStats,
-        login,
-        logout,
+        attendanceStats,
+        isLoading,
+        isRefreshing,
+        isSubmitting,
+        screenError,
+        actionError,
+        clearActionError: () => setActionError(null),
+        refreshAttendance,
         handleClockIn,
         handleClockOut,
-        refreshAttendance,
       }}
     >
       {children}
@@ -209,8 +195,7 @@ export function AttendanceProvider({ children }) {
 export function useAttendance() {
   const context = useContext(AttendanceContext);
   if (!context) {
-    throw new Error('useAttendance must be used within AttendanceProvider');
+    throw new Error('useAttendance must be used within an AttendanceProvider');
   }
   return context;
 }
-

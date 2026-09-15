@@ -1,29 +1,40 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, SafeAreaView, StatusBar, Platform, ActivityIndicator } from 'react-native';
-import { AttendanceProvider, useAttendance } from './src/context/AttendanceContext';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  StatusBar,
+  Platform,
+  BackHandler,
+} from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { AttendanceProvider } from './src/context/AttendanceContext';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import LoadingState from './src/components/LoadingState';
+import { COLORS } from './src/constants/theme';
 
-function MainNavigator() {
-  const { isAuthenticated, isAuthLoading } = useAttendance();
+function AuthenticatedApp() {
   const [currentScreen, setCurrentScreen] = useState('dashboard');
 
-  if (isAuthLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
-      </View>
-    );
-  }
+  // Android hardware back button handler
+  useEffect(() => {
+    const onBackPress = () => {
+      if (currentScreen === 'history') {
+        setCurrentScreen('dashboard');
+        return true; // Handled
+      }
+      return false; // Exit / minimize app, do not back-navigate to login
+    };
 
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [currentScreen]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.appFrame}>
         {currentScreen === 'history' ? (
           <HistoryScreen onBack={() => setCurrentScreen('dashboard')} />
@@ -35,31 +46,50 @@ function MainNavigator() {
   );
 }
 
-export default function App() {
+function MainNavigator() {
+  const { isAuthenticated, isRestoringSession } = useAuth();
+
+  if (isRestoringSession) {
+    return <LoadingState message="Starting Promise Attendance..." />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        <LoginScreen />
+      </SafeAreaView>
+    );
+  }
+
+  // AttendanceProvider ONLY mounts when authenticated
   return (
     <AttendanceProvider>
-      <MainNavigator />
+      <AuthenticatedApp />
     </AttendanceProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AuthProvider>
+        <MainNavigator />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0F172A',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#0F172A',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: COLORS.background,
   },
   appFrame: {
     flex: 1,
     width: '100%',
     maxWidth: Platform.OS === 'web' ? 480 : '100%',
     alignSelf: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: COLORS.background,
   },
 });

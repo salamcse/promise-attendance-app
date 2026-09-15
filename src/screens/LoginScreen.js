@@ -1,196 +1,223 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useAttendance } from '../context/AttendanceContext';
-import { Lock, User, LogIn, Clock } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Keyboard,
+} from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { Lock, User, Clock, Eye, EyeOff } from 'lucide-react-native';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../constants/theme';
+import PrimaryButton from '../components/PrimaryButton';
 
 export default function LoginScreen() {
-  const { login, isActionLoading } = useAttendance();
+  const { login, isLoggingIn, authError, setAuthError } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const trimmedUsername = username.trim();
+  const isFormValid = trimmedUsername.length > 0 && password.length > 0;
 
   const handleSubmit = async () => {
-    if (!username.trim() || !password.trim()) {
-      setErrorMsg('Please enter your username and password.');
-      return;
-    }
+    Keyboard.dismiss();
+    if (!isFormValid || isLoggingIn) return;
 
-    setErrorMsg(null);
     try {
-      await login(username, password);
-    } catch (err) {
-      setErrorMsg(err.message || 'Login failed. Please check credentials.');
+      await login(trimmedUsername, password);
+    } catch {
+      // Error is stored in authError inside AuthContext
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        {/* Brand Header */}
-        <View style={styles.brand}>
-          <View style={styles.iconCircle}>
-            <Clock size={28} color="#6366F1" />
-          </View>
-          <Text style={styles.title}>Promise Attendance</Text>
-          <Text style={styles.subtitle}>Employee Client</Text>
-        </View>
-
-        {/* Inputs */}
-        <View style={styles.form}>
-          <Text style={styles.label}>Username or Email</Text>
-          <View style={styles.inputWrapper}>
-            <User size={16} color="#94A3B8" style={{ marginRight: 10 }} />
-            <TextInput
-              style={styles.input}
-              value={username}
-              onChangeText={setUsername}
-              placeholder="Enter username or email"
-              placeholderTextColor="#64748B"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.inputWrapper}>
-            <Lock size={16} color="#94A3B8" style={{ marginRight: 10 }} />
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor="#64748B"
-              secureTextEntry
-            />
-          </View>
-
-          {errorMsg && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{errorMsg}</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.card}>
+          {/* Brand Header */}
+          <View style={styles.brandHeader}>
+            <View style={styles.brandBadge}>
+              <Clock size={28} color={COLORS.primary} />
             </View>
-          )}
+            <Text style={styles.brandTitle}>Promise Attendance</Text>
+            <Text style={styles.brandSubtitle}>Employee Portal</Text>
+          </View>
 
-          {/* Login Button */}
-          <TouchableOpacity
-            style={[styles.loginBtn, isActionLoading && styles.btnDisabled]}
-            onPress={handleSubmit}
-            disabled={isActionLoading}
-            activeOpacity={0.8}
-          >
-            {isActionLoading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <View style={styles.btnContent}>
-                <LogIn size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.loginBtnText}>LOGIN</Text>
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Username / Email Field */}
+            <Text style={styles.inputLabel}>Username or Email</Text>
+            <View style={styles.inputWrapper}>
+              <User size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={username}
+                onChangeText={(val) => {
+                  setUsername(val);
+                  if (authError) setAuthError(null);
+                }}
+                placeholder="Enter username or email"
+                placeholderTextColor={COLORS.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Password Field */}
+            <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Lock size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={(val) => {
+                  setPassword(val);
+                  if (authError) setAuthError(null);
+                }}
+                placeholder="••••••••"
+                placeholderTextColor={COLORS.textMuted}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={styles.eyeBtn}
+                activeOpacity={0.7}
+              >
+                {showPassword ? (
+                  <EyeOff size={18} color={COLORS.textSecondary} />
+                ) : (
+                  <Eye size={18} color={COLORS.textSecondary} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Error Message Display */}
+            {Boolean(authError) && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{authError}</Text>
               </View>
             )}
-          </TouchableOpacity>
+
+            {/* Submit CTA */}
+            <PrimaryButton
+              title="LOGIN"
+              onPress={handleSubmit}
+              loading={isLoggingIn}
+              disabled={!isFormValid || isLoggingIn}
+              style={styles.loginBtn}
+            />
+          </View>
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.xl,
   },
   card: {
     width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    padding: 24,
+    maxWidth: 420,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xxl,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: COLORS.border,
   },
-  brand: {
+  brandHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.xxl,
   },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: '#312E81',
+  brandBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.brandDark,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    letterSpacing: -0.3,
+  brandTitle: {
+    ...TYPOGRAPHY.title,
+    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 2,
-    fontWeight: '500',
+  brandSubtitle: {
+    ...TYPOGRAPHY.caption,
+    marginTop: 4,
   },
   form: {
-    gap: 10,
+    gap: SPACING.sm,
   },
-  label: {
+  inputLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#CBD5E1',
-    marginTop: 4,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: COLORS.border,
+    height: 48,
+  },
+  inputIcon: {
+    marginRight: SPACING.sm,
   },
   input: {
     flex: 1,
-    color: '#F8FAFC',
+    color: COLORS.text,
     fontSize: 14,
+    height: '100%',
+  },
+  eyeBtn: {
+    padding: SPACING.xs,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 6,
+    backgroundColor: COLORS.dangerBg,
+    padding: SPACING.md,
+    borderRadius: RADIUS.sm,
+    marginTop: SPACING.xs,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   errorText: {
     fontSize: 12,
-    color: '#F87171',
+    color: '#FCA5A5',
     textAlign: 'center',
+    fontWeight: '500',
   },
   loginBtn: {
-    backgroundColor: '#6366F1',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-  },
-  btnDisabled: {
-    opacity: 0.7,
-  },
-  btnContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  loginBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    marginTop: SPACING.md,
   },
 });

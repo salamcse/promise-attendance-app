@@ -1,55 +1,76 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../context/AttendanceContext';
-import Header from '../components/Header';
+import { useRunningTimer } from '../hooks/useRunningTimer';
+import AppHeader from '../components/AppHeader';
 import StatusCard from '../components/StatusCard';
 import SummaryStats from '../components/SummaryStats';
+import PrimaryButton from '../components/PrimaryButton';
 import { Calendar } from 'lucide-react-native';
+import { COLORS, SPACING } from '../constants/theme';
 
 export default function DashboardScreen({ onNavigateHistory }) {
-  const { refreshAttendance } = useAttendance();
-  const [refreshing, setRefreshing] = useState(false);
+  const { user, logout, isLoggingOut } = useAuth();
+  const {
+    activeSession,
+    isClockedIn,
+    attendanceStats,
+    isRefreshing,
+    isSubmitting,
+    actionError,
+    refreshAttendance,
+    handleClockIn,
+    handleClockOut,
+  } = useAttendance();
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await refreshAttendance();
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  // Pure decoupled timer calculation
+  const { formattedTimer } = useRunningTimer(activeSession?.clockInTime);
 
   return (
     <View style={styles.container}>
-      <Header />
+      {/* Decoupled Header */}
+      <AppHeader
+        userName={user?.name || user?.username || 'Employee'}
+        onLogout={logout}
+        isLoggingOut={isLoggingOut}
+      />
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#6366F1"
-            colors={['#6366F1']}
+            refreshing={isRefreshing}
+            onRefresh={refreshAttendance}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
           />
         }
       >
         {/* Status Check-in / Check-out Card */}
-        <StatusCard />
+        <StatusCard
+          isClockedIn={isClockedIn}
+          formattedTimer={formattedTimer}
+          isSubmitting={isSubmitting}
+          onClockIn={handleClockIn}
+          onClockOut={handleClockOut}
+          actionError={actionError}
+        />
 
         {/* 30-Day Summary Statistics */}
-        <SummaryStats />
+        <SummaryStats stats={attendanceStats} />
 
-        {/* View Attendance History Navigation Button */}
-        <TouchableOpacity
-          style={styles.historyBtn}
-          onPress={onNavigateHistory}
-          activeOpacity={0.8}
-        >
-          <Calendar size={18} color="#6366F1" style={{ marginRight: 8 }} />
-          <Text style={styles.historyBtnText}>View Attendance History</Text>
-        </TouchableOpacity>
+        {/* View Attendance History Navigation CTA */}
+        <View style={styles.historyBtnWrapper}>
+          <PrimaryButton
+            title="View Attendance History"
+            onPress={onNavigateHistory}
+            variant="secondary"
+            icon={<Calendar size={18} color={COLORS.primary} />}
+            textStyle={styles.historyBtnText}
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -58,29 +79,20 @@ export default function DashboardScreen({ onNavigateHistory }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: COLORS.background,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    paddingBottom: 32,
+    paddingBottom: SPACING.xxl * 1.5,
   },
-  historyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1E293B',
-    marginHorizontal: 20,
-    marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#334155',
+  historyBtnWrapper: {
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.xl,
   },
   historyBtnText: {
-    color: '#F8FAFC',
+    color: COLORS.text,
     fontSize: 14,
-    fontWeight: '700',
   },
 });
