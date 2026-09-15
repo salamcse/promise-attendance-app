@@ -1,60 +1,27 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from './apiClient';
-import {
-  saveAuthSession,
-  getStoredToken,
-  getStoredUser,
-  clearAuthSession,
-} from './storageService';
 
-function normalizeAuthUser(data, identifier) {
-  const user = data.user ?? {};
-
-  const normalizedUser = {
-    id: user.id,
-    name: user.name ?? user.username ?? identifier,
-    email: user.email ?? null,
-    username: user.username ?? identifier,
-  };
-
-  if (!normalizedUser.id) {
-    throw new Error('Authentication succeeded but user ID was not returned.');
-  }
-
-  return normalizedUser;
-}
-
-function extractToken(data) {
-  return data.token ?? data.access_token ?? data.user?.accessToken ?? null;
-}
+const TOKEN_KEY = '@promise_auth_token';
+const USER_KEY = '@promise_auth_user';
 
 export async function login(identifier, password) {
-  const cleanIdentifier = identifier?.trim();
-
-  if (!cleanIdentifier || !password) {
-    throw new Error('Username or email and password are required.');
-  }
-
-  const isEmail = cleanIdentifier.includes('@');
+  const isEmail = identifier.includes('@');
   const payload = isEmail
-    ? { email: cleanIdentifier.toLowerCase(), password }
-    : { username: cleanIdentifier, password };
+    ? { email: identifier.toLowerCase().trim(), password }
+    : { username: identifier.trim(), password };
 
   const data = await apiRequest('/login', {
     method: 'POST',
     body: payload,
   });
 
-  const token = extractToken(data);
+  const token = data.token || data.access_token || data.user?.accessToken;
+  const user = data.user || { id: identifier, name: identifier };
 
-  if (!token) {
-    throw new Error(
-      'Authentication succeeded but no access token was returned by the server.'
-    );
-  }
-
-  const user = normalizeAuthUser(data, cleanIdentifier);
-
-  await saveAuthSession(token, user);
+  await AsyncStorage.multiSet([
+    [TOKEN_KEY, token],
+    [USER_KEY, JSON.stringify(user)],
+  ]);
 
   return { token, user };
 }
@@ -62,28 +29,26 @@ export async function login(identifier, password) {
 export async function logout(token) {
   try {
     if (token) {
-      await apiRequest('/logout', {
-        method: 'POST',
-        token,
-        timeoutMs: 6000,
-      });
+      await apiRequest('/logout', { method: 'POST', token });
     }
-  } catch (error) {
-    console.warn('[AuthService] Backend logout failed:', error?.message);
+  } catch {
+    // Ignore network failure during logout
   } finally {
-    await clearAuthSession();
+    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
   }
 }
 
 export async function restoreSession() {
-  const [token, user] = await Promise.all([
-    getStoredToken(),
-    getStoredUser(),
+  const [token, rawUser] = await Promise.all([
+    AsyncStorage.getItem(TOKEN_KEY),
+    AsyncStorage.getItem(USER_KEY),
   ]);
 
-  if (!token || !user?.id) {
+  if (!token || !rawUser) return null;
+
+  try {
+    return { token, user: JSON.parse(rawUser) };
+  } catch {
     return null;
   }
-
-  return { token, user };
 }

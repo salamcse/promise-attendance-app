@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
-import * as attendanceService from '../features/attendance/attendanceService';
-import { calculateAttendanceStats } from '../features/attendance/attendanceUtils';
+import * as attendanceService from '../services/attendanceService';
+import { calculateAttendanceStats } from '../services/attendanceService';
 import * as locationService from '../services/locationService';
-import { getErrorMessage } from '../utils/errorUtils';
+import { getErrorMessage } from '../services/apiClient';
 
 const AttendanceContext = createContext(null);
 

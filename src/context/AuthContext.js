@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as authService from '../services/authService';
-import { getErrorMessage } from '../utils/errorUtils';
+import { getErrorMessage } from '../services/apiClient';
 
 const AuthContext = createContext(null);
 
@@ -49,6 +49,7 @@ export function AuthProvider({ children }) {
       setUser(session.user);
       return session;
     } catch (err) {
+      console.warn('[AuthContext] Login failed:', err.status, err.code, err.message, err.data);
       const msg = getErrorMessage(err);
       setAuthError(msg);
       throw err;
