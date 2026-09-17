@@ -18,19 +18,19 @@ import PrimaryButton from '../components/PrimaryButton';
 export default function LoginScreen() {
   const { login, isLoggingIn, authError, setAuthError } = useAuth();
 
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const trimmedUsername = username.trim();
-  const isFormValid = trimmedUsername.length > 0 && password.length > 0;
+  const trimmedIdentifier = identifier.trim();
+  const isFormValid = trimmedIdentifier.length > 0 && password.length > 0;
 
   const handleSubmit = async () => {
     Keyboard.dismiss();
     if (!isFormValid || isLoggingIn) return;
 
     try {
-      await login(trimmedUsername, password);
+      await login(trimmedIdentifier, password);
     } catch {
       // Error is stored in authError inside AuthContext
     }
@@ -57,15 +57,15 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={styles.form}>
-            {/* Username / Email Field */}
-            <Text style={styles.inputLabel}>Username or Email</Text>
+            {/* Email / Identifier Field */}
+            <Text style={styles.inputLabel}>Email</Text>
             <View style={styles.inputWrapper}>
               <User size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                value={username}
+                value={identifier}
                 onChangeText={(val) => {
-                  setUsername(val);
+                  setIdentifier(val);
                   if (authError) setAuthError(null);
                 }}
                 placeholder="Enter username or email"
@@ -199,6 +199,12 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 14,
     height: '100%',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+      },
+    }),
   },
   eyeBtn: {
     padding: SPACING.xs,

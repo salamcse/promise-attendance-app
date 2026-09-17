@@ -5,10 +5,7 @@ const TOKEN_KEY = '@promise_auth_token';
 const USER_KEY = '@promise_auth_user';
 
 export async function login(identifier, password) {
-  const isEmail = identifier.includes('@');
-  const payload = isEmail
-    ? { email: identifier.toLowerCase().trim(), password }
-    : { username: identifier.trim(), password };
+  const payload = { identifier: identifier.trim(), password };
 
   const data = await apiRequest('/login', {
     method: 'POST',
