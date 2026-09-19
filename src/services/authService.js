@@ -4,16 +4,31 @@ import { apiRequest } from './apiClient';
 const TOKEN_KEY = '@promise_auth_token';
 const USER_KEY = '@promise_auth_user';
 
-export async function login(identifier, password) {
-  const payload = { identifier: identifier.trim(), password };
+export async function login(email, password) {
+  const payload = { email: email.trim(), password };
 
-  const data = await apiRequest('/login', {
+  const data = await apiRequest('/hrm/login', {
     method: 'POST',
     body: payload,
   });
 
-  const token = data.token || data.access_token || data.user?.accessToken;
-  const user = data.user || { id: identifier, name: identifier };
+  const responseUser = data?.user || data?.employee || data?.data?.user || data;
+  const token = responseUser?.accessToken || data?.token || data?.access_token || data?.data?.token;
+
+  if (!token) {
+    throw new Error('Authentication failed: Access token missing in response');
+  }
+
+  const user = {
+    id: responseUser?.id || responseUser?.phone || email.trim(),
+    name: responseUser?.name || email.trim(),
+    email: responseUser?.email || email.trim(),
+    phone: responseUser?.phone || '',
+    expiresIn: responseUser?.expiresIn || null,
+    ...responseUser,
+  };
+
+  delete user.accessToken;
 
   await AsyncStorage.multiSet([
     [TOKEN_KEY, token],
@@ -26,7 +41,7 @@ export async function login(identifier, password) {
 export async function logout(token) {
   try {
     if (token) {
-      await apiRequest('/logout', { method: 'POST', token });
+      await apiRequest('/hrm/logout', { method: 'POST', token });
     }
   } catch {
     // Ignore network failure during logout

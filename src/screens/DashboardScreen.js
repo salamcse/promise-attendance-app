@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingBottom: SPACING.xxl * 1.5,
+    paddingBottom: SPACING.xxl * 2.5,
   },
   historyBtnWrapper: {
     marginHorizontal: SPACING.xl,

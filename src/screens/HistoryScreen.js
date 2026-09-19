@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: SPACING.xl,
-    paddingBottom: SPACING.xxl * 2,
+    paddingBottom: SPACING.xxl * 2.5,
   },
   sectionTitle: {
     fontSize: 12,

@@ -18,19 +18,19 @@ import PrimaryButton from '../components/PrimaryButton';
 export default function LoginScreen() {
   const { login, isLoggingIn, authError, setAuthError } = useAuth();
 
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const trimmedIdentifier = identifier.trim();
-  const isFormValid = trimmedIdentifier.length > 0 && password.length > 0;
+  const trimmedEmail = email.trim();
+  const isFormValid = trimmedEmail.length > 0 && password.length > 0;
 
   const handleSubmit = async () => {
     Keyboard.dismiss();
     if (!isFormValid || isLoggingIn) return;
 
     try {
-      await login(trimmedIdentifier, password);
+      await login(trimmedEmail, password);
     } catch {
       // Error is stored in authError inside AuthContext
     }
@@ -57,21 +57,22 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={styles.form}>
-            {/* Email / Identifier Field */}
+            {/* Email Field */}
             <Text style={styles.inputLabel}>Email</Text>
             <View style={styles.inputWrapper}>
               <User size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                value={identifier}
+                value={email}
                 onChangeText={(val) => {
-                  setIdentifier(val);
+                  setEmail(val);
                   if (authError) setAuthError(null);
                 }}
-                placeholder="Enter username or email"
+                placeholder="Enter your email"
                 placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
+                keyboardType="email-address"
                 returnKeyType="next"
               />
             </View>

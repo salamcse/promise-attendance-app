@@ -13,6 +13,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import LoadingState from './src/components/LoadingState';
+import BottomTabBar from './src/components/BottomTabBar';
 import { COLORS } from './src/constants/theme';
 
 function AuthenticatedApp() {
@@ -33,14 +34,20 @@ function AuthenticatedApp() {
   }, [currentScreen]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.appFrame}>
-        {currentScreen === 'history' ? (
-          <HistoryScreen onBack={() => setCurrentScreen('dashboard')} />
-        ) : (
-          <DashboardScreen onNavigateHistory={() => setCurrentScreen('history')} />
-        )}
+        <View style={styles.screenContainer}>
+          {currentScreen === 'history' ? (
+            <HistoryScreen onBack={() => setCurrentScreen('dashboard')} />
+          ) : (
+            <DashboardScreen onNavigateHistory={() => setCurrentScreen('history')} />
+          )}
+        </View>
+        <BottomTabBar
+          activeTab={currentScreen}
+          onTabChange={setCurrentScreen}
+        />
       </View>
     </SafeAreaView>
   );
@@ -91,5 +98,8 @@ const styles = StyleSheet.create({
     maxWidth: Platform.OS === 'web' ? 480 : '100%',
     alignSelf: 'center',
     backgroundColor: COLORS.background,
+  },
+  screenContainer: {
+    flex: 1,
   },
 });

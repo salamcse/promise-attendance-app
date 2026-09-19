@@ -39,12 +39,12 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const login = useCallback(async (identifier, password) => {
+  const login = useCallback(async (email, password) => {
     setIsLoggingIn(true);
     setAuthError(null);
 
     try {
-      const session = await authService.login(identifier, password);
+      const session = await authService.login(email, password);
       setToken(session.token);
       setUser(session.user);
       return session;
