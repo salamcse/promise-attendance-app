@@ -154,11 +154,11 @@ const styles = StyleSheet.create({
   },
   brandHeader: {
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
   },
   brandLogo: {
-    width: 240,
-    height: 80,
+    width: 175,
+    height: 60,
     marginBottom: SPACING.xs,
   },
   brandSubtitle: {
