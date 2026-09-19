@@ -1,9 +1,4 @@
-let rawUrl = process.env.EXPO_PUBLIC_API_URL || 'https://dev.promiseassets.com/api/v1';
-let cleanedUrl = rawUrl.trim().replace(/\/+$/, '');
-if (cleanedUrl.endsWith('/hrm')) {
-  cleanedUrl = cleanedUrl.slice(0, -4);
-}
-const BASE_URL = cleanedUrl;
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://dev.promiseassets.com/api/v1';
 
 export async function apiRequest(endpoint, { method = 'GET', body, token, timeoutMs = 15000 } = {}) {
   const controller = new AbortController();
