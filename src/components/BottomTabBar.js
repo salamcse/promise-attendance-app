@@ -106,9 +106,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 2,
   },
-  activeIconContainer: {
-    backgroundColor: COLORS.primaryMuted,
-  },
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',

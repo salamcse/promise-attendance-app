@@ -6,16 +6,30 @@ export { calculateAttendanceStats };
 export async function getAttendanceStatus(token, userId) {
   const data = await apiRequest(`/hrm/status?user_id=${userId}`, { token });
   const session = data?.active_session;
+  const todayAttendance = data?.today_attendance;
+
+  let todayBaseSeconds = 0;
+  if (todayAttendance) {
+    if (todayAttendance.total_work_seconds != null) {
+      todayBaseSeconds = Number(todayAttendance.total_work_seconds);
+    } else if (todayAttendance.total_work_minutes != null) {
+      todayBaseSeconds = Number(todayAttendance.total_work_minutes) * 60;
+    }
+  }
+
   return {
     isClockedIn: Boolean(session),
     activeSession: session ? {
       id: String(session.id || session.session_id),
       clockInTime: session.clock_in_time || session.created_at,
     } : null,
+    todayAttendance: todayAttendance || null,
+    todayBaseSeconds,
   };
 }
 
 export async function clockIn(location, token, userId, note) {
+  const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
   return apiRequest('/hrm/clock-in', {
     method: 'POST',
     token,
@@ -23,6 +37,7 @@ export async function clockIn(location, token, userId, note) {
       user_id: userId,
       latitude: location.latitude,
       longitude: location.longitude,
+      location_type: locationType,
       timestamp: new Date().toISOString(),
       ...(note ? { note: note.trim() } : {}),
     },
@@ -30,6 +45,7 @@ export async function clockIn(location, token, userId, note) {
 }
 
 export async function clockOut(location, token, userId, sessionId) {
+  const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
   return apiRequest('/hrm/clock-out', {
     method: 'POST',
     token,
@@ -37,6 +53,7 @@ export async function clockOut(location, token, userId, sessionId) {
       user_id: userId,
       latitude: location.latitude,
       longitude: location.longitude,
+      location_type: locationType,
       ...(sessionId ? { session_id: sessionId } : {}),
       timestamp: new Date().toISOString(),
     },

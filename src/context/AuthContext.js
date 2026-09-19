@@ -17,6 +17,13 @@ export function AuthProvider({ children }) {
     let isMounted = true;
 
     async function initSession() {
+      // Safety fallback: Never keep the app on the startup loading spinner for more than 2.5s
+      const fallbackTimer = setTimeout(() => {
+        if (isMounted) {
+          setIsRestoringSession(false);
+        }
+      }, 2500);
+
       try {
         const session = await authService.restoreSession();
         if (isMounted && session) {
@@ -26,6 +33,7 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.warn('[AuthContext] Session restoration failed:', err);
       } finally {
+        clearTimeout(fallbackTimer);
         if (isMounted) {
           setIsRestoringSession(false);
         }

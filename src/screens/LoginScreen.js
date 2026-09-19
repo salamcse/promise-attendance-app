@@ -57,8 +57,8 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={styles.form}>
-            {/* Email Field */}
-            <Text style={styles.inputLabel}>Email</Text>
+            {/* Email or Username Field */}
+            <Text style={styles.inputLabel}>Email or Username</Text>
             <View style={styles.inputWrapper}>
               <User size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
               <TextInput
@@ -68,11 +68,11 @@ export default function LoginScreen() {
                   setEmail(val);
                   if (authError) setAuthError(null);
                 }}
-                placeholder="Enter your email"
+                placeholder="Enter email or username"
                 placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
-                keyboardType="email-address"
+                keyboardType="default"
                 returnKeyType="next"
               />
             </View>

@@ -5,7 +5,13 @@ const TOKEN_KEY = '@promise_auth_token';
 const USER_KEY = '@promise_auth_user';
 
 export async function login(email, password) {
-  const payload = { email: email.trim(), password };
+  const identifier = (email || '').trim();
+  const payload = {
+    email: identifier,
+    username: identifier,
+    identifier,
+    password,
+  };
 
   const data = await apiRequest('/hrm/login', {
     method: 'POST',

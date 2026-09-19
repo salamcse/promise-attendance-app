@@ -16,6 +16,7 @@ export default function DashboardScreen({ onNavigateHistory }) {
     activeSession,
     isClockedIn,
     attendanceStats,
+    todayWorkedSeconds,
     isRefreshing,
     isSubmitting,
     actionError,
@@ -24,8 +25,8 @@ export default function DashboardScreen({ onNavigateHistory }) {
     handleClockOut,
   } = useAttendance();
 
-  // Pure decoupled timer calculation
-  const { formattedTimer } = useRunningTimer(activeSession?.clockInTime);
+  // Pure decoupled timer calculation with today's accumulated duration
+  const { formattedTimer } = useRunningTimer(activeSession?.clockInTime, todayWorkedSeconds);
 
   return (
     <View style={styles.container}>

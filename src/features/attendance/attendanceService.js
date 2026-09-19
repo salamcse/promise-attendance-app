@@ -93,11 +93,13 @@ export async function getAttendanceStatus(token, userId) {
  */
 export async function clockIn(location, token, userId, note) {
   const validUserId = ensureUserId(userId);
+  const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
 
   const payload = {
     user_id: validUserId,
     latitude: location.latitude,
     longitude: location.longitude,
+    location_type: locationType,
     timestamp: new Date().toISOString(),
     ...(note ? { note: note.trim() } : {}),
   };
@@ -114,11 +116,13 @@ export async function clockIn(location, token, userId, note) {
  */
 export async function clockOut(location, token, userId, sessionId) {
   const validUserId = ensureUserId(userId);
+  const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
 
   const payload = {
     user_id: validUserId,
     latitude: location.latitude,
     longitude: location.longitude,
+    location_type: locationType,
     ...(sessionId ? { session_id: sessionId } : {}),
     timestamp: new Date().toISOString(),
   };

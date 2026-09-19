@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import * as attendanceService from '../services/attendanceService';
 import { calculateAttendanceStats } from '../services/attendanceService';
@@ -18,6 +18,43 @@ export function AttendanceProvider({ children }) {
     absentDays: 0,
     totalHours: 0,
   });
+  const [todayBaseSeconds, setTodayBaseSeconds] = useState(0);
+
+  // Calculate today's completed work duration in seconds (prioritizing backend today_attendance)
+  const todayWorkedSeconds = useMemo(() => {
+    if (todayBaseSeconds > 0) {
+      return todayBaseSeconds;
+    }
+
+    const todayStr = new Date().toDateString();
+    let total = 0;
+    (attendanceLogs || []).forEach((rec) => {
+      // Don't count the current active session if it's already in logs
+      if (activeSession && (rec.id === activeSession.id || rec.session_id === activeSession.id)) {
+        return;
+      }
+
+      let isToday = false;
+      if (rec.clockInTime) {
+        isToday = new Date(rec.clockInTime).toDateString() === todayStr;
+      } else if (rec.date) {
+        isToday = new Date(rec.date).toDateString() === todayStr;
+      }
+
+      if (isToday) {
+        let sec = Number(rec.durationSeconds || 0);
+        if (!sec && rec.clockInTime && rec.clockOutTime) {
+          const diff = Math.floor(
+            (new Date(rec.clockOutTime).getTime() - new Date(rec.clockInTime).getTime()) / 1000
+          );
+          if (diff > 0) sec = diff;
+        }
+        total += sec;
+      }
+    });
+
+    return total;
+  }, [todayBaseSeconds, attendanceLogs, activeSession]);
 
   // UI / Status States
   const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +72,9 @@ export function AttendanceProvider({ children }) {
     try {
       const statusData = await attendanceService.getAttendanceStatus(token, user.id);
       setActiveSession(statusData.activeSession);
+      if (statusData.todayBaseSeconds != null) {
+        setTodayBaseSeconds(statusData.todayBaseSeconds);
+      }
       return statusData;
     } catch (err) {
       if (err.status === 401 || err.code === 'AUTH_ERROR') {
@@ -128,10 +168,29 @@ export function AttendanceProvider({ children }) {
         return;
       }
 
-      await attendanceService.clockIn(location, token, user?.id, note);
+      const res = await attendanceService.clockIn(location, token, user?.id, note);
 
-      // Canonical server sync
-      await fetchStatus();
+      // Instantly update active session so UI immediately reflects "WORKING"
+      const session = res?.active_session || res?.data?.active_session;
+      if (session) {
+        setActiveSession({
+          id: String(session.id || session.session_id),
+          clockInTime: session.clock_in_time || session.created_at || new Date().toISOString(),
+        });
+      } else {
+        setActiveSession({
+          id: 'active-' + Date.now(),
+          clockInTime: new Date().toISOString(),
+        });
+      }
+
+      const todayAtt = res?.today_attendance || res?.data?.today_attendance;
+      if (todayAtt?.total_work_minutes != null) {
+        setTodayBaseSeconds(Number(todayAtt.total_work_minutes) * 60);
+      }
+
+      // Background server synchronization
+      fetchStatus().catch(() => {});
       fetchHistory().catch(() => {});
     } catch (err) {
       if (err.status === 401 || err.code === 'AUTH_ERROR') {
@@ -162,8 +221,11 @@ export function AttendanceProvider({ children }) {
       const location = await locationService.getCurrentLocation();
       await attendanceService.clockOut(location, token, user?.id, activeSession?.id);
 
-      // Canonical server sync
-      await fetchStatus();
+      // Instantly update active session so UI immediately reflects "NOT CLOCKED IN"
+      setActiveSession(null);
+
+      // Background server synchronization
+      fetchStatus().catch(() => {});
       fetchHistory().catch(() => {});
     } catch (err) {
       if (err.status === 401 || err.code === 'AUTH_ERROR') {
@@ -185,6 +247,7 @@ export function AttendanceProvider({ children }) {
         isClockedIn: Boolean(activeSession),
         attendanceLogs,
         attendanceStats,
+        todayWorkedSeconds,
         isLoading,
         isRefreshing,
         isSubmitting,

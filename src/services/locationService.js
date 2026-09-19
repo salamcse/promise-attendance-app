@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 
 export class LocationError extends Error {
@@ -26,7 +27,22 @@ async function ensureLocationPermission() {
 }
 
 async function ensureLocationServices() {
-  const enabled = await Location.hasServicesEnabledAsync();
+  let enabled = await Location.hasServicesEnabledAsync();
+
+  if (!enabled && Platform.OS === 'android') {
+    try {
+      // Automatically triggers Android Google Play Services native popup to turn on GPS/Location
+      await Location.enableNetworkProviderAsync();
+      enabled = await Location.hasServicesEnabledAsync();
+      if (!enabled) {
+        // Allow a brief moment for system provider state to update
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        enabled = await Location.hasServicesEnabledAsync();
+      }
+    } catch {
+      // User tapped "No thanks" or dismissed dialog
+    }
+  }
 
   if (!enabled) {
     throw new LocationError(
@@ -80,9 +96,29 @@ export async function getCurrentLocation() {
     await ensureLocationPermission();
     await ensureLocationServices();
 
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
+    let location = null;
+
+    // 1. Strict Fast Path: Only accept cache if it is extremely fresh (<= 15 seconds)
+    // AND has high accuracy (<= 75 meters, well inside the 150m office geofence)
+    try {
+      const lastKnown = await Location.getLastKnownPositionAsync({
+        maxAge: 15000, // strictly within the last 15 seconds
+        requiredAccuracy: 75, // high precision under 75m
+      });
+
+      if (lastKnown?.coords?.latitude && lastKnown?.coords?.longitude) {
+        location = lastKnown;
+      }
+    } catch {
+      // Proceed to fresh high-accuracy position fetch
+    }
+
+    // 2. Fetch fresh high-accuracy GPS position if no ultra-recent cache is available
+    if (!location) {
+      location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+    }
 
     const { latitude, longitude, accuracy } = location.coords;
 

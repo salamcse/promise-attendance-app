@@ -1,24 +1,39 @@
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://dev.promiseassets.com/api/v1';
 
-export async function apiRequest(endpoint, { method = 'GET', body, token } = {}) {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: body? JSON.stringify(body) : undefined,
-  });
+export async function apiRequest(endpoint, { method = 'GET', body, token, timeoutMs = 15000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const data = await response.json().catch(() => ({}));
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const error = new Error(data?.message || data?.error || `Request failed (${response.status})`);
-    error.status = response.status;
-    throw error;
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const error = new Error(data?.message || data?.error || `Request failed (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeoutErr = new Error('Network request timed out. Please check your internet connection.');
+      timeoutErr.code = 'TIMEOUT';
+      throw timeoutErr;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-
-  return data;
 }
 
 export function getErrorMessage(error) {
