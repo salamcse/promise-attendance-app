@@ -9,9 +9,10 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { Lock, User, Clock, Eye, EyeOff } from 'lucide-react-native';
+import { Lock, User, Eye, EyeOff } from 'lucide-react-native';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 
@@ -48,11 +49,12 @@ export default function LoginScreen() {
         <View style={styles.card}>
           {/* Brand Header */}
           <View style={styles.brandHeader}>
-            <View style={styles.brandBadge}>
-              <Clock size={28} color={COLORS.primary} />
-            </View>
-            <Text style={styles.brandTitle}>Promise Attendance</Text>
-            <Text style={styles.brandSubtitle}>Employee Portal</Text>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.brandSubtitle}>Employee Attendance Portal</Text>
           </View>
 
           {/* Form */}
@@ -154,20 +156,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xxl,
   },
-  brandBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.brandDark,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  brandTitle: {
-    ...TYPOGRAPHY.title,
-    textAlign: 'center',
+  brandLogo: {
+    width: 240,
+    height: 80,
+    marginBottom: SPACING.xs,
   },
   brandSubtitle: {
     ...TYPOGRAPHY.caption,

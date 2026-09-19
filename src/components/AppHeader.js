@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { LogOut, Clock } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { LogOut } from 'lucide-react-native';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
 export default function AppHeader({
@@ -12,11 +12,13 @@ export default function AppHeader({
     <View style={styles.header}>
       <View style={styles.topRow}>
         <View style={styles.brandGroup}>
-          <View style={styles.logoBadge}>
-            <Clock size={18} color={COLORS.primary} />
-          </View>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
           <View>
-            <Text style={styles.appTitle}>Promise Attendance</Text>
+            <Text style={styles.appTitle}>Attendance</Text>
             <Text style={styles.welcomeText}>Welcome, {userName}</Text>
           </View>
         </View>
@@ -59,16 +61,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logoBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
+  headerLogo: {
+    width: 100,
+    height: 36,
+    marginRight: SPACING.sm,
   },
   appTitle: {
     fontSize: 16,
