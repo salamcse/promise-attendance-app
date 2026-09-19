@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, Platform } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import PrimaryButton from './PrimaryButton';
@@ -13,9 +13,13 @@ export default function StatusCard({
 }) {
   const [note, setNote] = useState('');
 
+  useEffect(() => {
+    setNote('');
+  }, [isClockedIn]);
+
   const handleAction = () => {
     if (isClockedIn) {
-      onClockOut();
+      onClockOut(note);
     } else {
       onClockIn(note);
     }
@@ -54,21 +58,19 @@ export default function StatusCard({
       {/* Stopwatch Display */}
       <Text style={styles.timerText}>{formattedTimer}</Text>
 
-      {/* Note Input Field when Not Clocked In */}
-      {!isClockedIn && (
-        <View style={styles.noteWrapper}>
-          <Text style={styles.noteLabel}>Note / Reason</Text>
-          <TextInput
-            style={styles.noteInput}
-            value={note}
-            onChangeText={setNote}
-            placeholder="Add note (Required outside office)"
-            placeholderTextColor={COLORS.textMuted}
-            autoCapitalize="sentences"
-            returnKeyType="done"
-          />
-        </View>
-      )}
+      {/* Note Input Field */}
+      <View style={styles.noteWrapper}>
+        <Text style={styles.noteLabel}>Note / Reason</Text>
+        <TextInput
+          style={styles.noteInput}
+          value={note}
+          onChangeText={setNote}
+          placeholder="Add note (Required outside office)"
+          placeholderTextColor={COLORS.textMuted}
+          autoCapitalize="sentences"
+          returnKeyType="done"
+        />
+      </View>
 
       {/* Inline Action Error Message */}
       {Boolean(actionError) && (

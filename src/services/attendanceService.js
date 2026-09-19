@@ -44,7 +44,7 @@ export async function clockIn(location, token, userId, note) {
   });
 }
 
-export async function clockOut(location, token, userId, sessionId) {
+export async function clockOut(location, token, userId, sessionId, note) {
   const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
   return apiRequest('/hrm/clock-out', {
     method: 'POST',
@@ -55,6 +55,7 @@ export async function clockOut(location, token, userId, sessionId) {
       longitude: location.longitude,
       location_type: locationType,
       ...(sessionId ? { session_id: sessionId } : {}),
+      ...(note ? { note: note.trim() } : {}),
       timestamp: new Date().toISOString(),
     },
   });

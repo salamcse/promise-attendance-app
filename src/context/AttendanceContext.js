@@ -206,7 +206,7 @@ export function AttendanceProvider({ children }) {
   }, [activeSession, token, user?.id, fetchStatus, fetchHistory, logout]);
 
   // Clock Out handler
-  const handleClockOut = useCallback(async () => {
+  const handleClockOut = useCallback(async (note) => {
     if (isSubmittingRef.current) return;
     if (!activeSession) {
       setActionError('No active clock-in session found.');
@@ -219,7 +219,16 @@ export function AttendanceProvider({ children }) {
 
     try {
       const location = await locationService.getCurrentLocation();
-      await attendanceService.clockOut(location, token, user?.id, activeSession?.id);
+      const isOffice = location.isOffice;
+
+      if (!isOffice && (!note || !note.trim())) {
+        setActionError('Note is required when clocking out outside office location.');
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+
+      await attendanceService.clockOut(location, token, user?.id, activeSession?.id, note);
 
       // Instantly update active session so UI immediately reflects "NOT CLOCKED IN"
       setActiveSession(null);

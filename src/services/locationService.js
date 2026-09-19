@@ -52,13 +52,23 @@ async function ensureLocationServices() {
   }
 }
 
+const defaultLat = 23.777702;
+const defaultLon = 90.361081;
+const defaultRadius = 150;
+
+const parsedLat = parseFloat(process.env.EXPO_PUBLIC_OFFICE_LATITUDE);
+const parsedLon = parseFloat(process.env.EXPO_PUBLIC_OFFICE_LONGITUDE);
+const parsedRadius = parseFloat(
+  process.env.EXPO_PUBLIC_OFFICE_RADIUS_METERS || process.env.EXPO_PUBLIC_GEOFENCE_RADIUS_METERS
+);
+
 export const OFFICE_LOCATION = {
-  latitude: 23.777702,
-  longitude: 90.361081,
-  name: 'e-Learning & Earning Ltd.',
+  latitude: !isNaN(parsedLat) ? parsedLat : defaultLat,
+  longitude: !isNaN(parsedLon) ? parsedLon : defaultLon,
+  name: process.env.EXPO_PUBLIC_OFFICE_NAME || 'e-Learning & Earning Ltd.',
 };
 
-export const GEOFENCE_RADIUS_METERS = 150;
+export const GEOFENCE_RADIUS_METERS = !isNaN(parsedRadius) ? parsedRadius : defaultRadius;
 
 /**
  * Calculate distance between two points in meters using Haversine formula

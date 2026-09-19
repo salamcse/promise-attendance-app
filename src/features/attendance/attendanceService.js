@@ -114,7 +114,7 @@ export async function clockIn(location, token, userId, note) {
 /**
  * Submit Clock Out
  */
-export async function clockOut(location, token, userId, sessionId) {
+export async function clockOut(location, token, userId, sessionId, note) {
   const validUserId = ensureUserId(userId);
   const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
 
@@ -124,6 +124,7 @@ export async function clockOut(location, token, userId, sessionId) {
     longitude: location.longitude,
     location_type: locationType,
     ...(sessionId ? { session_id: sessionId } : {}),
+    ...(note ? { note: note.trim() } : {}),
     timestamp: new Date().toISOString(),
   };
 
