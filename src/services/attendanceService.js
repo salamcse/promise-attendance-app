@@ -15,7 +15,7 @@ export async function getAttendanceStatus(token, userId) {
   };
 }
 
-export async function clockIn(location, token, userId) {
+export async function clockIn(location, token, userId, note) {
   return apiRequest('/hrm/clock-in', {
     method: 'POST',
     token,
@@ -24,6 +24,7 @@ export async function clockIn(location, token, userId) {
       latitude: location.latitude,
       longitude: location.longitude,
       timestamp: new Date().toISOString(),
+      ...(note ? { note: note.trim() } : {}),
     },
   });
 }

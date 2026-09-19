@@ -91,7 +91,7 @@ export async function getAttendanceStatus(token, userId) {
 /**
  * Submit Clock In
  */
-export async function clockIn(location, token, userId) {
+export async function clockIn(location, token, userId, note) {
   const validUserId = ensureUserId(userId);
 
   const payload = {
@@ -99,6 +99,7 @@ export async function clockIn(location, token, userId) {
     latitude: location.latitude,
     longitude: location.longitude,
     timestamp: new Date().toISOString(),
+    ...(note ? { note: note.trim() } : {}),
   };
 
   return apiRequest('/hrm/clock-in', {

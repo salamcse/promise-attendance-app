@@ -106,7 +106,7 @@ export function AttendanceProvider({ children }) {
   }, [user?.id, fetchStatus, fetchHistory]);
 
   // Clock In handler
-  const handleClockIn = useCallback(async () => {
+  const handleClockIn = useCallback(async (note) => {
     if (isSubmittingRef.current) return;
     if (activeSession) {
       setActionError('You are already clocked in.');
@@ -119,7 +119,16 @@ export function AttendanceProvider({ children }) {
 
     try {
       const location = await locationService.getCurrentLocation();
-      await attendanceService.clockIn(location, token, user?.id);
+      const isOffice = location.isOffice;
+
+      if (!isOffice && (!note || !note.trim())) {
+        setActionError('Note is required when clocking in outside office location.');
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+
+      await attendanceService.clockIn(location, token, user?.id, note);
 
       // Canonical server sync
       await fetchStatus();

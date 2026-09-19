@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, Platform } from 'react-native';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import PrimaryButton from './PrimaryButton';
 
@@ -11,6 +11,16 @@ export default function StatusCard({
   onClockOut,
   actionError = null,
 }) {
+  const [note, setNote] = useState('');
+
+  const handleAction = () => {
+    if (isClockedIn) {
+      onClockOut();
+    } else {
+      onClockIn(note);
+    }
+  };
+
   return (
     <View
       style={[
@@ -44,6 +54,22 @@ export default function StatusCard({
       {/* Stopwatch Display */}
       <Text style={styles.timerText}>{formattedTimer}</Text>
 
+      {/* Note Input Field when Not Clocked In */}
+      {!isClockedIn && (
+        <View style={styles.noteWrapper}>
+          <Text style={styles.noteLabel}>Note / Reason</Text>
+          <TextInput
+            style={styles.noteInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Add note (Required outside office)"
+            placeholderTextColor={COLORS.textMuted}
+            autoCapitalize="sentences"
+            returnKeyType="done"
+          />
+        </View>
+      )}
+
       {/* Inline Action Error Message */}
       {Boolean(actionError) && (
         <View style={styles.errorBox}>
@@ -54,7 +80,7 @@ export default function StatusCard({
       {/* Action Button */}
       <PrimaryButton
         title={isClockedIn ? 'CHECK OUT' : 'CHECK IN'}
-        onPress={isClockedIn ? onClockOut : onClockIn}
+        onPress={handleAction}
         loading={isSubmitting}
         disabled={isSubmitting}
         variant={isClockedIn ? 'danger' : 'primary'}
@@ -126,7 +152,33 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontVariant: ['tabular-nums'],
     letterSpacing: 2,
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
+  },
+  noteWrapper: {
+    width: '100%',
+    marginBottom: SPACING.md,
+  },
+  noteLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 6,
+  },
+  noteInput: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    height: 44,
+    color: COLORS.text,
+    fontSize: 14,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+        outlineWidth: 0,
+      },
+    }),
   },
   errorBox: {
     backgroundColor: COLORS.dangerBg,
