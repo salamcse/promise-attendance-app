@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, ActivityIndicator, View } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { RADIUS, SPACING } from '../constants/theme';
 
 export default function PrimaryButton({
   title,
@@ -12,18 +13,19 @@ export default function PrimaryButton({
   style,
   textStyle,
 }) {
+  const { colors, isDark } = useTheme();
   const isActionDisabled = disabled || loading;
 
   const getBackgroundColor = () => {
-    if (variant === 'danger') return COLORS.danger;
-    if (variant === 'secondary') return COLORS.surface;
-    return COLORS.primary;
+    if (variant === 'danger') return colors.danger;
+    if (variant === 'secondary') return colors.surface;
+    return colors.primary;
   };
 
   const getTextColor = () => {
-    if (variant === 'secondary') return COLORS.text;
+    if (variant === 'secondary') return colors.text;
     if (variant === 'danger') return '#FFFFFF';
-    return COLORS.brandDark;
+    return isDark ? colors.brandDark : '#FFFFFF';
   };
 
   return (
@@ -31,7 +33,7 @@ export default function PrimaryButton({
       style={[
         styles.button,
         { backgroundColor: getBackgroundColor() },
-        variant === 'secondary' && styles.secondaryBorder,
+        variant === 'secondary' && { borderWidth: 1, borderColor: colors.border },
         isActionDisabled && styles.disabled,
         style,
       ]}
@@ -61,10 +63,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
-  },
-  secondaryBorder: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   disabled: {
     opacity: 0.6,

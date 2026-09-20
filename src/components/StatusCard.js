@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, Platform } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { SPACING, RADIUS } from '../constants/theme';
 import PrimaryButton from './PrimaryButton';
 
 export default function StatusCard({
@@ -12,6 +13,8 @@ export default function StatusCard({
   actionError = null,
 }) {
   const [note, setNote] = useState('');
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   useEffect(() => {
     setNote('');
@@ -66,7 +69,7 @@ export default function StatusCard({
           value={note}
           onChangeText={setNote}
           placeholder="Add note (Required outside office)"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={colors.textMuted}
           autoCapitalize="sentences"
           returnKeyType="done"
         />
@@ -92,113 +95,115 @@ export default function StatusCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.xxl,
-    alignItems: 'center',
-    marginHorizontal: SPACING.xl,
-    marginTop: SPACING.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  cardClockedIn: {
-    borderColor: 'rgba(16, 185, 129, 0.4)',
-    backgroundColor: 'rgba(16, 185, 129, 0.04)',
-  },
-  cardClockedOut: {
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: RADIUS.full,
-    marginBottom: SPACING.lg,
-  },
-  badgeClockedIn: {
-    backgroundColor: COLORS.successBg,
-  },
-  badgeClockedOut: {
-    backgroundColor: 'rgba(167, 176, 192, 0.1)',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: SPACING.sm,
-  },
-  dotGreen: {
-    backgroundColor: COLORS.success,
-  },
-  dotGray: {
-    backgroundColor: COLORS.textMuted,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  textGreen: {
-    color: COLORS.success,
-  },
-  textGray: {
-    color: COLORS.textSecondary,
-  },
-  timerText: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: COLORS.text,
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 2,
-    marginBottom: SPACING.lg,
-  },
-  noteWrapper: {
-    width: '100%',
-    marginBottom: SPACING.md,
-  },
-  noteLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 6,
-  },
-  noteInput: {
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.md,
-    height: 44,
-    color: COLORS.text,
-    fontSize: 14,
-    ...Platform.select({
-      web: {
-        outlineStyle: 'none',
-        outlineWidth: 0,
-      },
-    }),
-  },
-  errorBox: {
-    backgroundColor: COLORS.dangerBg,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.sm,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    width: '100%',
-  },
-  errorText: {
-    color: '#FCA5A5',
-    fontSize: 12,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  actionBtn: {
-    width: '100%',
-  },
-});
+function getStyles(colors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.xl,
+      padding: SPACING.xxl,
+      alignItems: 'center',
+      marginHorizontal: SPACING.xl,
+      marginTop: SPACING.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    cardClockedIn: {
+      borderColor: colors.clockedInBorder,
+      backgroundColor: colors.clockedInCardBg,
+    },
+    cardClockedOut: {
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.surface,
+    },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.xs + 2,
+      borderRadius: RADIUS.full,
+      marginBottom: SPACING.lg,
+    },
+    badgeClockedIn: {
+      backgroundColor: colors.successBg,
+    },
+    badgeClockedOut: {
+      backgroundColor: colors.clockedOutBadgeBg,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: SPACING.sm,
+    },
+    dotGreen: {
+      backgroundColor: colors.success,
+    },
+    dotGray: {
+      backgroundColor: colors.textMuted,
+    },
+    badgeText: {
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.8,
+    },
+    textGreen: {
+      color: colors.success,
+    },
+    textGray: {
+      color: colors.textSecondary,
+    },
+    timerText: {
+      fontSize: 42,
+      fontWeight: '800',
+      color: colors.text,
+      fontVariant: ['tabular-nums'],
+      letterSpacing: 2,
+      marginBottom: SPACING.lg,
+    },
+    noteWrapper: {
+      width: '100%',
+      marginBottom: SPACING.md,
+    },
+    noteLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 6,
+    },
+    noteInput: {
+      backgroundColor: colors.inputBackground,
+      borderRadius: RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: SPACING.md,
+      height: 44,
+      color: colors.text,
+      fontSize: 14,
+      ...Platform.select({
+        web: {
+          outlineStyle: 'none',
+          outlineWidth: 0,
+        },
+      }),
+    },
+    errorBox: {
+      backgroundColor: colors.dangerBg,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+      borderRadius: RADIUS.sm,
+      marginBottom: SPACING.lg,
+      borderWidth: 1,
+      borderColor: colors.logoutPillBorder,
+      width: '100%',
+    },
+    errorText: {
+      color: colors.errorText,
+      fontSize: 12,
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+    actionBtn: {
+      width: '100%',
+    },
+  });
+}

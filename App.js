@@ -7,6 +7,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { AttendanceProvider } from './src/context/AttendanceContext';
 import LoginScreen from './src/screens/LoginScreen';
@@ -14,10 +15,10 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import LoadingState from './src/components/LoadingState';
 import BottomTabBar from './src/components/BottomTabBar';
-import { COLORS } from './src/constants/theme';
 
 function AuthenticatedApp() {
   const [currentScreen, setCurrentScreen] = useState('dashboard');
+  const { colors, isDark } = useTheme();
 
   // Android hardware back button handler
   useEffect(() => {
@@ -34,9 +35,9 @@ function AuthenticatedApp() {
   }, [currentScreen]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      <View style={styles.appFrame}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      <View style={[styles.appFrame, { backgroundColor: colors.background }]}>
         <View style={styles.screenContainer}>
           {currentScreen === 'history' ? (
             <HistoryScreen onBack={() => setCurrentScreen('dashboard')} />
@@ -55,6 +56,7 @@ function AuthenticatedApp() {
 
 function MainNavigator() {
   const { isAuthenticated, isRestoringSession } = useAuth();
+  const { colors, isDark } = useTheme();
 
   if (isRestoringSession) {
     return <LoadingState message="Starting Promise Attendance..." />;
@@ -62,8 +64,8 @@ function MainNavigator() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
         <LoginScreen />
       </SafeAreaView>
     );
@@ -80,9 +82,11 @@ function MainNavigator() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <MainNavigator />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <MainNavigator />
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -90,14 +94,12 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   appFrame: {
     flex: 1,
     width: '100%',
     maxWidth: Platform.OS === 'web' ? 480 : '100%',
     alignSelf: 'center',
-    backgroundColor: COLORS.background,
   },
   screenContainer: {
     flex: 1,

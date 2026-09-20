@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, History } from 'lucide-react-native';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { SPACING, RADIUS } from '../constants/theme';
 
 export default function BottomTabBar({ activeTab, onTabChange }) {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, SPACING.sm);
+  const { colors, isDark } = useTheme();
 
   const tabs = [
     {
@@ -20,6 +22,8 @@ export default function BottomTabBar({ activeTab, onTabChange }) {
       icon: History,
     },
   ];
+
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   return (
     <View style={[styles.container, { paddingBottom: bottomPadding }]}>
@@ -46,7 +50,7 @@ export default function BottomTabBar({ activeTab, onTabChange }) {
               >
                 <IconComponent
                   size={20}
-                  color={isActive ? COLORS.primary : COLORS.textMuted}
+                  color={isActive ? colors.primary : colors.textMuted}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
               </View>
@@ -66,54 +70,59 @@ export default function BottomTabBar({ activeTab, onTabChange }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 8,
-      },
-      web: {
-        boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.25)',
-      },
-    }),
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
-  },
-  iconContainer: {
-    width: 44,
-    height: 28,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-    letterSpacing: 0.2,
-  },
-  activeTabLabel: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-});
+function getStyles(colors, isDark) {
+  return StyleSheet.create({
+    container: {
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: isDark ? 0.2 : 0.05,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: isDark ? 8 : 4,
+        },
+        web: {
+          boxShadow: colors.navShadow,
+        },
+      }),
+    },
+    tabsRow: {
+      flexDirection: 'row',
+      height: 56,
+      alignItems: 'center',
+      justifyContent: 'space-around',
+    },
+    tabButton: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 4,
+    },
+    iconContainer: {
+      width: 44,
+      height: 28,
+      borderRadius: RADIUS.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 2,
+    },
+    activeIconContainer: {
+      backgroundColor: colors.primaryMuted,
+    },
+    tabLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.textMuted,
+      letterSpacing: 0.2,
+    },
+    activeTabLabel: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+  });
+}

@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../context/AttendanceContext';
+import { useTheme } from '../context/ThemeContext';
 import { useRunningTimer } from '../hooks/useRunningTimer';
 import AppHeader from '../components/AppHeader';
 import StatusCard from '../components/StatusCard';
 import SummaryStats from '../components/SummaryStats';
 import PrimaryButton from '../components/PrimaryButton';
 import { Calendar } from 'lucide-react-native';
-import { COLORS, SPACING } from '../constants/theme';
+import { SPACING } from '../constants/theme';
 
 export default function DashboardScreen({ onNavigateHistory }) {
   const { user, logout, isLoggingOut } = useAuth();
+  const { colors } = useTheme();
   const {
     activeSession,
     isClockedIn,
@@ -27,6 +29,7 @@ export default function DashboardScreen({ onNavigateHistory }) {
 
   // Pure decoupled timer calculation with today's accumulated duration
   const { formattedTimer } = useRunningTimer(activeSession?.clockInTime, todayWorkedSeconds);
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -44,8 +47,8 @@ export default function DashboardScreen({ onNavigateHistory }) {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={refreshAttendance}
-            tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
@@ -68,7 +71,7 @@ export default function DashboardScreen({ onNavigateHistory }) {
             title="View Attendance History"
             onPress={onNavigateHistory}
             variant="secondary"
-            icon={<Calendar size={18} color={COLORS.primary} />}
+            icon={<Calendar size={18} color={colors.primary} />}
             textStyle={styles.historyBtnText}
           />
         </View>
@@ -77,23 +80,25 @@ export default function DashboardScreen({ onNavigateHistory }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: SPACING.xxl * 2.5,
-  },
-  historyBtnWrapper: {
-    marginHorizontal: SPACING.xl,
-    marginTop: SPACING.xl,
-  },
-  historyBtnText: {
-    color: COLORS.text,
-    fontSize: 14,
-  },
-});
+function getStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      paddingBottom: SPACING.xxl * 2.5,
+    },
+    historyBtnWrapper: {
+      marginHorizontal: SPACING.xl,
+      marginTop: SPACING.xl,
+    },
+    historyBtnText: {
+      color: colors.text,
+      fontSize: 14,
+    },
+  });
+}

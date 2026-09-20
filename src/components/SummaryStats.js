@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { SPACING, RADIUS } from '../constants/theme';
 
 export default function SummaryStats({ stats = { presentDays: 0, absentDays: 0, totalHours: 0 } }) {
   const { presentDays = 0, absentDays = 0, totalHours = 0 } = stats;
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -29,47 +32,49 @@ export default function SummaryStats({ stats = { presentDays: 0, absentDays: 0, 
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.md,
-    marginHorizontal: SPACING.xl,
-    marginTop: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  card: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  divider: {
-    width: 1,
-    height: 36,
-    backgroundColor: COLORS.border,
-  },
-  val: {
-    fontSize: 22,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-    marginBottom: 4,
-  },
-  valPresent: {
-    color: COLORS.success,
-  },
-  valAbsent: {
-    color: COLORS.danger,
-  },
-  valHours: {
-    color: COLORS.primary,
-  },
-  label: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-});
+function getStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.lg,
+      paddingVertical: SPACING.lg,
+      paddingHorizontal: SPACING.md,
+      marginHorizontal: SPACING.xl,
+      marginTop: SPACING.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    card: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    divider: {
+      width: 1,
+      height: 36,
+      backgroundColor: colors.border,
+    },
+    val: {
+      fontSize: 22,
+      fontWeight: '800',
+      fontVariant: ['tabular-nums'],
+      marginBottom: 4,
+    },
+    valPresent: {
+      color: colors.success,
+    },
+    valAbsent: {
+      color: colors.danger,
+    },
+    valHours: {
+      color: colors.primary,
+    },
+    label: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+  });
+}

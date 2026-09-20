@@ -2,7 +2,8 @@
  * Centralized Design System & Theme Tokens for Promise Attendance
  */
 
-export const COLORS = {
+export const DARK_COLORS = {
+  mode: 'dark',
   // Brand Gold Accents
   primary: '#C7A250',
   primaryPressed: '#D8B568',
@@ -14,6 +15,13 @@ export const COLORS = {
   surface: '#131A2A',
   surfaceHover: '#1B2438',
   border: '#232D42',
+
+  // Input & Card Specifics
+  inputBackground: '#0B0F19',
+  cardBorder: '#232D42',
+  clockedInCardBg: 'rgba(16, 185, 129, 0.04)',
+  clockedInBorder: 'rgba(16, 185, 129, 0.4)',
+  clockedOutBadgeBg: 'rgba(167, 176, 192, 0.1)',
 
   // Typography Colors
   text: '#FFFFFF',
@@ -27,7 +35,69 @@ export const COLORS = {
   dangerBg: 'rgba(239, 68, 68, 0.15)',
   warning: '#F59E0B',
   warningBg: 'rgba(245, 158, 11, 0.15)',
+  errorText: '#FCA5A5',
+
+  // Pills & Badges
+  logoutPillBg: 'rgba(239, 68, 68, 0.08)',
+  logoutPillBorder: 'rgba(239, 68, 68, 0.25)',
+  statusPillBg: 'rgba(16, 185, 129, 0.1)',
+  statusPillBorder: 'rgba(16, 185, 129, 0.25)',
+  avatarBg: 'rgba(199, 162, 80, 0.12)',
+
+  // System
+  statusBarStyle: 'light-content',
+  navShadow: '0 -2px 10px rgba(0, 0, 0, 0.25)',
 };
+
+export const LIGHT_COLORS = {
+  mode: 'light',
+  // Brand Gold Accents
+  primary: '#B88E28',
+  primaryPressed: '#9E771D',
+  primaryMuted: 'rgba(184, 142, 40, 0.12)',
+
+  // Backgrounds & Surfaces
+  brandDark: '#1D1D1B',
+  background: '#F4F6F9',
+  surface: '#FFFFFF',
+  surfaceHover: '#F1F5F9',
+  border: '#E2E8F0',
+
+  // Input & Card Specifics
+  inputBackground: '#F8FAFC',
+  cardBorder: '#E2E8F0',
+  clockedInCardBg: 'rgba(5, 150, 105, 0.04)',
+  clockedInBorder: 'rgba(5, 150, 105, 0.35)',
+  clockedOutBadgeBg: 'rgba(100, 116, 139, 0.1)',
+
+  // Typography Colors
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+
+  // Status & Semantic Colors
+  success: '#059669',
+  successBg: 'rgba(5, 150, 105, 0.1)',
+  danger: '#DC2626',
+  dangerBg: 'rgba(220, 38, 38, 0.08)',
+  warning: '#D97706',
+  warningBg: 'rgba(217, 119, 6, 0.1)',
+  errorText: '#B91C1C',
+
+  // Pills & Badges
+  logoutPillBg: 'rgba(220, 38, 38, 0.08)',
+  logoutPillBorder: 'rgba(220, 38, 38, 0.2)',
+  statusPillBg: 'rgba(5, 150, 105, 0.08)',
+  statusPillBorder: 'rgba(5, 150, 105, 0.2)',
+  avatarBg: 'rgba(184, 142, 40, 0.1)',
+
+  // System
+  statusBarStyle: 'dark-content',
+  navShadow: '0 -2px 10px rgba(0, 0, 0, 0.06)',
+};
+
+// Default backwards compatibility fallback
+export const COLORS = LIGHT_COLORS;
 
 export const SPACING = {
   xs: 4,
@@ -50,27 +120,22 @@ export const TYPOGRAPHY = {
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: COLORS.text,
     letterSpacing: -0.3,
   },
   heading: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
   },
   subheading: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textSecondary,
   },
   body: {
     fontSize: 14,
     fontWeight: '400',
-    color: COLORS.text,
   },
   caption: {
     fontSize: 12,
     fontWeight: '500',
-    color: COLORS.textMuted,
   },
 };
