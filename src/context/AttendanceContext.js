@@ -15,8 +15,11 @@ export function AttendanceProvider({ children }) {
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState({
     presentDays: 0,
+    lateDays: 0,
     absentDays: 0,
     totalHours: 0,
+    totalWorkText: '',
+    monthName: '',
   });
   const [todayBaseSeconds, setTodayBaseSeconds] = useState(0);
 
@@ -85,15 +88,19 @@ export function AttendanceProvider({ children }) {
     }
   }, [token, user?.id, logout]);
 
-  // Fetch 30-day history from backend
-  const fetchHistory = useCallback(async () => {
+  // Fetch history from backend (supports options like status, date, from, to)
+  const fetchHistory = useCallback(async (options = {}) => {
     if (!token || !user?.id) return;
     try {
-      const historyData = await attendanceService.getAttendanceHistory(token, user.id, 30);
+      const historyData = await attendanceService.getAttendanceHistory(token, user.id, options);
       const records = historyData.records || [];
       setAttendanceLogs(records);
-      setAttendanceStats(calculateAttendanceStats(records));
-      return records;
+      if (historyData.monthlySummary) {
+        setAttendanceStats(historyData.monthlySummary);
+      } else {
+        setAttendanceStats(calculateAttendanceStats(records));
+      }
+      return historyData;
     } catch (err) {
       if (err.status === 401 || err.code === 'AUTH_ERROR') {
         await logout();
@@ -264,6 +271,7 @@ export function AttendanceProvider({ children }) {
         actionError,
         clearActionError: () => setActionError(null),
         refreshAttendance,
+        fetchHistory,
         handleClockIn,
         handleClockOut,
       }}

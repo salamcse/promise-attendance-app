@@ -1,24 +1,128 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Platform,
+} from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
 import { useTheme } from '../context/ThemeContext';
-import { ArrowLeft, Clock } from 'lucide-react-native';
-import { formatDate, formatTime, formatDuration } from '../utils/dateUtils';
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Eye,
+  Calendar,
+} from 'lucide-react-native';
+import {
+  formatShortDate,
+  getMonthDateRange,
+  shiftMonth,
+  formatTime,
+} from '../utils/dateUtils';
 import { SPACING, RADIUS } from '../constants/theme';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import SummaryStats from '../components/SummaryStats';
+import AttendanceDetailModal from '../components/AttendanceDetailModal';
 
 export default function HistoryScreen({ onBack }) {
   const {
     attendanceLogs,
+    attendanceStats,
     isLoading,
     isRefreshing,
     screenError,
+    fetchHistory,
     refreshAttendance,
   } = useAttendance();
+
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
+  // Selected Month State (defaults to current month)
+  const [selectedMonthDate, setSelectedMonthDate] = useState(new Date());
+  const [isMonthLoading, setIsMonthLoading] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  const { from, to, monthLabel, isCurrentMonth } = useMemo(
+    () => getMonthDateRange(selectedMonthDate),
+    [selectedMonthDate]
+  );
+
+  // Fetch month data when target month changes
+  const loadMonthData = useCallback(
+    async (targetDate) => {
+      const range = getMonthDateRange(targetDate);
+      setIsMonthLoading(true);
+      try {
+        await fetchHistory({
+          from: range.from,
+          to: range.to,
+          per_page: 50,
+        });
+      } catch {
+        // Handled in context
+      } finally {
+        setIsMonthLoading(false);
+      }
+    },
+    [fetchHistory]
+  );
+
+  // Initial load for current month specifically
+  useEffect(() => {
+    loadMonthData(selectedMonthDate);
+  }, []);
+
+  const handlePrevMonth = () => {
+    const prev = shiftMonth(selectedMonthDate, -1);
+    setSelectedMonthDate(prev);
+    loadMonthData(prev);
+  };
+
+  const handleNextMonth = () => {
+    const next = shiftMonth(selectedMonthDate, 1);
+    setSelectedMonthDate(next);
+    loadMonthData(next);
+  };
+
+  const handleRefresh = useCallback(() => {
+    return loadMonthData(selectedMonthDate);
+  }, [loadMonthData, selectedMonthDate]);
+
+  // Filter counts
+  const filterCounts = useMemo(() => {
+    let late = 0;
+    let present = 0;
+    let absent = 0;
+    (attendanceLogs || []).forEach((r) => {
+      const st = (r.status || '').toLowerCase();
+      if (st === 'late') late++;
+      else if (st === 'present') present++;
+      else if (st === 'absent') absent++;
+    });
+    return {
+      all: attendanceLogs.length,
+      late,
+      present,
+      absent,
+    };
+  }, [attendanceLogs]);
+
+  // Filtered records
+  const filteredRecords = useMemo(() => {
+    if (activeFilter === 'all') return attendanceLogs;
+    return (attendanceLogs || []).filter(
+      (r) => (r.status || '').toLowerCase() === activeFilter
+    );
+  }, [attendanceLogs, activeFilter]);
 
   return (
     <View style={styles.container}>
@@ -30,11 +134,40 @@ export default function HistoryScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
+      {/* Month Navigator Header Bar */}
+      <View style={styles.monthBar}>
+        <TouchableOpacity
+          style={styles.monthNavBtn}
+          onPress={handlePrevMonth}
+          activeOpacity={0.7}
+        >
+          <ChevronLeft size={20} color={colors.text} />
+        </TouchableOpacity>
+
+        <View style={styles.monthLabelContainer}>
+          <Calendar size={15} color={colors.primary} style={{ marginRight: 6 }} />
+          <Text style={styles.monthLabelText}>{monthLabel}</Text>
+          {isCurrentMonth && <View style={styles.currentMonthDot} />}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.monthNavBtn, isCurrentMonth && styles.monthNavBtnDisabled]}
+          onPress={handleNextMonth}
+          disabled={isCurrentMonth}
+          activeOpacity={0.7}
+        >
+          <ChevronRight
+            size={20}
+            color={isCurrentMonth ? colors.textMuted : colors.text}
+          />
+        </TouchableOpacity>
+      </View>
+
       {/* Main Content with Explicit States */}
-      {isLoading && !isRefreshing ? (
-        <LoadingState message="Loading attendance history..." />
+      {(isLoading || isMonthLoading) && !isRefreshing ? (
+        <LoadingState message={`Loading ${monthLabel} attendance...`} />
       ) : screenError ? (
-        <ErrorState message={screenError} onRetry={refreshAttendance} />
+        <ErrorState message={screenError} onRetry={handleRefresh} />
       ) : (
         <ScrollView
           style={styles.scroll}
@@ -42,64 +175,208 @@ export default function HistoryScreen({ onBack }) {
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              onRefresh={refreshAttendance}
+              onRefresh={handleRefresh}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
         >
-          <Text style={styles.sectionTitle}>Last 30 Days</Text>
+          {/* Monthly Executive Summary for Selected Month */}
+          <View style={styles.summaryWrapper}>
+            <SummaryStats stats={attendanceStats} />
+          </View>
 
-          {attendanceLogs.length === 0 ? (
+          {/* Quick Filter Tabs */}
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                activeFilter === 'all' && styles.filterChipActive,
+              ]}
+              onPress={() => setActiveFilter('all')}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  activeFilter === 'all' && styles.filterTextActive,
+                ]}
+              >
+                All ({filterCounts.all})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                activeFilter === 'late' && styles.filterChipActive,
+              ]}
+              onPress={() => setActiveFilter('late')}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  activeFilter === 'late' && styles.filterTextActive,
+                ]}
+              >
+                Late ({filterCounts.late})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                activeFilter === 'present' && styles.filterChipActive,
+              ]}
+              onPress={() => setActiveFilter('present')}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  activeFilter === 'present' && styles.filterTextActive,
+                ]}
+              >
+                Present ({filterCounts.present})
+              </Text>
+            </TouchableOpacity>
+
+            {filterCounts.absent > 0 && (
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  activeFilter === 'absent' && styles.filterChipActive,
+                ]}
+                onPress={() => setActiveFilter('absent')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    activeFilter === 'absent' && styles.filterTextActive,
+                  ]}
+                >
+                  Absent ({filterCounts.absent})
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Clean Streamlined Rows */}
+          {filteredRecords.length === 0 ? (
             <EmptyState
-              title="No Attendance Records"
-              message="No attendance check-ins recorded for this account in the last 30 days."
+              title={`No Records for ${monthLabel}`}
+              message={
+                activeFilter === 'all'
+                  ? `No attendance check-ins recorded for ${monthLabel}.`
+                  : `No records found with status "${activeFilter}" in ${monthLabel}.`
+              }
             />
           ) : (
-            attendanceLogs.map((item, index) => {
-              const dateStr = formatDate(item.date || item.clockInTime);
-              const inTimeStr = formatTime(item.clockInTime);
-              const outTimeStr = item.clockOutTime ? formatTime(item.clockOutTime) : 'Active';
-              const durationStr = formatDuration(item.durationSeconds);
-              const isActive = !item.clockOutTime;
+            filteredRecords.map((item, index) => {
+              const dateStr = formatShortDate(item.date || item.clockInTime);
+              const inTime = item.clockInTimeFormatted || formatTime(item.clockInTime);
+              const outTime = item.isActiveSession
+                ? 'Active'
+                : item.clockOutTimeFormatted || (item.clockOutTime ? formatTime(item.clockOutTime) : '--');
+              const durationText = item.durationText || `${item.durationMinutes || 0}m`;
+              const isActive = item.isActiveSession || (!item.clockOutTime && !item.clockOutTimeFormatted);
+              const isLate = (item.status || '').toLowerCase() === 'late';
+              const isApproved = item.approvalStatus === 'approved';
 
               return (
-                <View key={item.id || `rec-${index}`} style={styles.recordCard}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.recordDate}>{dateStr}</Text>
-                    <View
-                      style={[
-                        styles.durationBadge,
-                        isActive && styles.activeBadge,
-                      ]}
-                    >
-                      <Clock
-                        size={12}
-                        color={isActive ? colors.success : colors.primary}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text
+                <TouchableOpacity
+                  key={item.id || `rec-${index}`}
+                  style={styles.cleanRow}
+                  onPress={() => setSelectedRecord(item)}
+                  activeOpacity={0.7}
+                >
+                  {/* Left Column: Date & Status Badges */}
+                  <View style={styles.dateCol}>
+                    <Text style={styles.rowDateText}>{dateStr}</Text>
+
+                    <View style={styles.badgeRow}>
+                      {isActive ? (
+                        <View style={[styles.miniBadge, styles.miniBadgeActive]}>
+                          <Text style={styles.miniBadgeTextActive}>Active</Text>
+                        </View>
+                      ) : isLate ? (
+                        <View style={[styles.miniBadge, styles.miniBadgeLate]}>
+                          <Text style={styles.miniBadgeTextLate}>Late</Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.miniBadge, styles.miniBadgePresent]}>
+                          <Text style={styles.miniBadgeTextPresent}>Present</Text>
+                        </View>
+                      )}
+
+                      <View
                         style={[
-                          styles.durationText,
-                          isActive && styles.activeText,
+                          styles.miniBadge,
+                          isApproved ? styles.miniBadgeApproved : styles.miniBadgePending,
                         ]}
                       >
-                        {isActive ? 'In Progress' : durationStr}
+                        <Text
+                          style={
+                            isApproved
+                              ? styles.miniBadgeTextApproved
+                              : styles.miniBadgeTextPending
+                          }
+                        >
+                          {isApproved ? 'Approved' : 'Pending'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Middle Column: In/Out Times & Total Work Time */}
+                  <View style={styles.timesCol}>
+                    <View style={styles.timeFlowRow}>
+                      <Text style={styles.timeLabel}>In </Text>
+                      <Text style={styles.timeVal}>{inTime}</Text>
+                      <Text style={styles.timeDivider}> • </Text>
+                      <Text style={styles.timeLabel}>Out </Text>
+                      <Text
+                        style={[
+                          styles.timeVal,
+                          isActive && styles.timeValActive,
+                        ]}
+                      >
+                        {outTime}
+                      </Text>
+                    </View>
+
+                    <View style={styles.workDurationRow}>
+                      <Clock size={11} color={colors.primary} style={{ marginRight: 4 }} />
+                      <Text style={styles.workDurationText}>
+                        Work: {isActive ? 'In Progress' : durationText}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={styles.timesRow}>
-                    <Text style={styles.timesText}>
-                      {inTimeStr} → {outTimeStr}
-                    </Text>
-                  </View>
-                </View>
+                  {/* Right Column: Clean View Button */}
+                  <TouchableOpacity
+                    style={styles.viewBtn}
+                    onPress={() => setSelectedRecord(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Eye size={13} color={colors.primary} style={{ marginRight: 4 }} />
+                    <Text style={styles.viewBtnText}>View</Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
               );
             })
           )}
         </ScrollView>
       )}
+
+      {/* Session Details Modal */}
+      <AttendanceDetailModal
+        visible={Boolean(selectedRecord)}
+        onClose={() => setSelectedRecord(null)}
+        record={selectedRecord}
+      />
     </View>
   );
 }
@@ -142,65 +419,202 @@ function getStyles(colors, isDark) {
       color: colors.text,
       marginLeft: SPACING.md,
     },
+    monthBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.md,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    monthNavBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: RADIUS.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.inputBackground,
+    },
+    monthNavBtnDisabled: {
+      opacity: 0.35,
+    },
+    monthLabelContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    monthLabelText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+      letterSpacing: -0.2,
+    },
+    currentMonthDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+      marginLeft: 6,
+    },
     scroll: {
       flex: 1,
     },
     content: {
-      paddingHorizontal: SPACING.xl,
-      paddingTop: SPACING.lg,
       paddingBottom: SPACING.xxl * 2.5,
     },
-    sectionTitle: {
+    summaryWrapper: {
+      marginBottom: SPACING.md,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: SPACING.xl,
+      marginBottom: SPACING.md,
+      gap: SPACING.sm,
+      flexWrap: 'wrap',
+    },
+    filterChip: {
+      paddingHorizontal: SPACING.md,
+      paddingVertical: 5,
+      borderRadius: RADIUS.full,
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterText: {
       fontSize: 12,
-      fontWeight: '700',
+      fontWeight: '600',
       color: colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      marginBottom: SPACING.sm,
     },
-    recordCard: {
-      paddingVertical: SPACING.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+    filterTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '700',
     },
-    cardHeader: {
+    cleanRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: SPACING.sm,
+      paddingVertical: SPACING.md + 2,
+      paddingHorizontal: SPACING.xl,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.surface,
     },
-    recordDate: {
-      fontSize: 15,
+    dateCol: {
+      flex: 1.1,
+    },
+    rowDateText: {
+      fontSize: 14,
       fontWeight: '700',
       color: colors.text,
+      marginBottom: 4,
     },
-    durationBadge: {
+    badgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    miniBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: RADIUS.xs,
+    },
+    miniBadgeLate: {
+      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    },
+    miniBadgePresent: {
+      backgroundColor: colors.successBg,
+    },
+    miniBadgeActive: {
+      backgroundColor: colors.successBg,
+    },
+    miniBadgeApproved: {
+      backgroundColor: colors.inputBackground,
+    },
+    miniBadgePending: {
+      backgroundColor: 'rgba(245, 158, 11, 0.10)',
+    },
+    miniBadgeTextLate: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#F59E0B',
+    },
+    miniBadgeTextPresent: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.success,
+    },
+    miniBadgeTextActive: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.success,
+    },
+    miniBadgeTextApproved: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: colors.success,
+    },
+    miniBadgeTextPending: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: '#F59E0B',
+    },
+    timesCol: {
+      flex: 1.4,
+      paddingHorizontal: SPACING.xs,
+    },
+    timeFlowRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 3,
+    },
+    timeLabel: {
+      fontSize: 11,
+      color: colors.textMuted,
+      fontWeight: '500',
+    },
+    timeVal: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.text,
+      fontVariant: ['tabular-nums'],
+    },
+    timeValActive: {
+      color: colors.success,
+      fontStyle: 'italic',
+    },
+    timeDivider: {
+      fontSize: 10,
+      color: colors.textMuted,
+    },
+    workDurationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    workDurationText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    viewBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.primaryMuted,
       paddingHorizontal: SPACING.sm + 2,
-      paddingVertical: 4,
+      paddingVertical: 5,
       borderRadius: RADIUS.sm,
+      marginLeft: SPACING.xs,
     },
-    activeBadge: {
-      backgroundColor: colors.successBg,
-    },
-    durationText: {
-      fontSize: 12,
+    viewBtnText: {
+      fontSize: 11,
       fontWeight: '700',
       color: colors.primary,
     },
-    activeText: {
-      color: colors.success,
-    },
-    timesRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    timesText: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      fontWeight: '500',
-    },
   });
 }
+
