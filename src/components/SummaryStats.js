@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import { SPACING, RADIUS } from '../constants/theme';
+import { SPACING } from '../constants/theme';
 
 export default function SummaryStats({ stats = { presentDays: 0, absentDays: 0, totalHours: 0 } }) {
   const { presentDays = 0, absentDays = 0, totalHours = 0 } = stats;
@@ -10,23 +10,27 @@ export default function SummaryStats({ stats = { presentDays: 0, absentDays: 0, 
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={[styles.val, styles.valPresent]}>{presentDays}</Text>
-        <Text style={styles.label}>Present</Text>
-      </View>
+      <Text style={styles.sectionHeader}>MONTHLY SUMMARY (30 DAYS)</Text>
 
-      <View style={styles.divider} />
+      <View style={styles.metricsRow}>
+        <View style={styles.statCol}>
+          <Text style={[styles.val, styles.valPresent]}>{presentDays}</Text>
+          <Text style={styles.label}>Present</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={[styles.val, styles.valAbsent]}>{absentDays}</Text>
-        <Text style={styles.label}>Absent</Text>
-      </View>
+        <View style={styles.divider} />
 
-      <View style={styles.divider} />
+        <View style={styles.statCol}>
+          <Text style={[styles.val, styles.valAbsent]}>{absentDays}</Text>
+          <Text style={styles.label}>Absent</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={[styles.val, styles.valHours]}>{totalHours}h</Text>
-        <Text style={styles.label}>Hours</Text>
+        <View style={styles.divider} />
+
+        <View style={styles.statCol}>
+          <Text style={[styles.val, styles.valHours]}>{totalHours}h</Text>
+          <Text style={styles.label}>Hours</Text>
+        </View>
       </View>
     </View>
   );
@@ -35,32 +39,42 @@ export default function SummaryStats({ stats = { presentDays: 0, absentDays: 0, 
 function getStyles(colors) {
   return StyleSheet.create({
     container: {
+      width: '100%',
+      paddingVertical: SPACING.md + 2,
+      paddingHorizontal: SPACING.xl,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sectionHeader: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.8,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      marginBottom: SPACING.sm + 2,
+      textAlign: 'center',
+    },
+    metricsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.lg,
-      paddingVertical: SPACING.lg,
-      paddingHorizontal: SPACING.md,
-      marginHorizontal: SPACING.xl,
-      marginTop: SPACING.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
     },
-    card: {
+    statCol: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
     },
     divider: {
       width: 1,
-      height: 36,
+      height: 22,
       backgroundColor: colors.border,
     },
     val: {
-      fontSize: 22,
-      fontWeight: '800',
+      fontSize: 18,
+      fontWeight: '700',
       fontVariant: ['tabular-nums'],
-      marginBottom: 4,
+      marginBottom: 2,
+      letterSpacing: -0.3,
     },
     valPresent: {
       color: colors.success,
@@ -72,9 +86,10 @@ function getStyles(colors) {
       color: colors.primary,
     },
     label: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      fontWeight: '600',
+      fontSize: 11,
+      color: colors.textMuted,
+      fontWeight: '500',
     },
   });
 }
+

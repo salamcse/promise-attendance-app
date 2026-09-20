@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Platform } from 'react-native';
 import { LogOut, Sun, Moon } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, RADIUS } from '../constants/theme';
@@ -25,11 +25,11 @@ export default function AppHeader({
 }) {
   const { colors, isDark, toggleTheme } = useTheme();
   const initials = getInitials(userName);
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   return (
-    <View style={styles.header}>
-      {/* Top Bar: Brand Identity & Actions */}
+    <View style={styles.headerContainer}>
+      {/* 1. Header Top Bar (Brand & Actions) */}
       <View style={styles.topBar}>
         <Image
           source={
@@ -75,8 +75,8 @@ export default function AppHeader({
         </View>
       </View>
 
-      {/* User Greeting Card */}
-      <View style={styles.userSection}>
+      {/* 2. User Profile Section (Dedicated Background Band) */}
+      <View style={styles.profileSection}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
@@ -97,26 +97,39 @@ export default function AppHeader({
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, isDark) {
   return StyleSheet.create({
-    header: {
-      paddingHorizontal: SPACING.xl,
-      paddingTop: SPACING.lg,
-      paddingBottom: SPACING.sm,
-      backgroundColor: colors.background,
+    headerContainer: {
+      width: '100%',
     },
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingBottom: SPACING.md,
-      marginBottom: SPACING.lg,
+      paddingHorizontal: SPACING.xl,
+      paddingVertical: SPACING.sm + 2,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      zIndex: 10,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: isDark ? 0.2 : 0.05,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: isDark ? 8 : 4,
+        },
+        web: {
+          boxShadow: colors.headerShadow,
+        },
+      }),
     },
     logo: {
-      width: 120,
-      height: 32,
+      width: 140,
+      height: 50,
     },
     actionsGroup: {
       flexDirection: 'row',
@@ -128,10 +141,10 @@ function getStyles(colors) {
       height: 32,
       borderRadius: RADIUS.full,
       backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     logoutPill: {
       flexDirection: 'row',
@@ -144,52 +157,52 @@ function getStyles(colors) {
       borderColor: colors.logoutPillBorder,
     },
     logoutText: {
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '700',
       color: colors.danger,
-      marginLeft: 5,
-      letterSpacing: 0.3,
+      marginLeft: 4,
+      letterSpacing: 0.2,
     },
-    userSection: {
+    profileSection: {
       flexDirection: 'row',
       alignItems: 'center',
+      paddingHorizontal: SPACING.xl,
+      paddingVertical: SPACING.sm + 4,
       backgroundColor: colors.surface,
-      paddingVertical: SPACING.md,
-      paddingHorizontal: SPACING.lg,
-      borderRadius: RADIUS.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
     avatar: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: colors.avatarBg,
-      borderWidth: 1.5,
-      borderColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: SPACING.md,
+      marginRight: SPACING.md - 2,
+      borderWidth: 1,
+      borderColor: colors.primary,
     },
     avatarText: {
       fontSize: 13,
-      fontWeight: '800',
+      fontWeight: '700',
       color: colors.primary,
-      letterSpacing: 0.5,
+      letterSpacing: 0.3,
     },
     userInfo: {
       flex: 1,
       marginRight: SPACING.sm,
     },
     welcomeGreeting: {
-      fontSize: 10,
-      fontWeight: '700',
+      fontSize: 9,
+      fontWeight: '600',
       color: colors.textMuted,
-      letterSpacing: 0.8,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
     },
     userNameText: {
       fontSize: 15,
-      fontWeight: '800',
+      fontWeight: '700',
       color: colors.text,
       marginTop: 1,
       letterSpacing: -0.2,
@@ -199,23 +212,23 @@ function getStyles(colors) {
       alignItems: 'center',
       backgroundColor: colors.statusPillBg,
       paddingHorizontal: SPACING.sm + 2,
-      paddingVertical: SPACING.xs,
+      paddingVertical: 3,
       borderRadius: RADIUS.full,
       borderWidth: 1,
       borderColor: colors.statusPillBorder,
     },
     statusDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
+      width: 5,
+      height: 5,
+      borderRadius: 2.5,
       backgroundColor: colors.success,
       marginRight: 4,
     },
     statusText: {
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '700',
       color: colors.success,
-      letterSpacing: 0.3,
+      letterSpacing: 0.2,
     },
   });
 }

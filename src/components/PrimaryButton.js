@@ -18,7 +18,7 @@ export default function PrimaryButton({
 
   const getBackgroundColor = () => {
     if (variant === 'danger') return colors.danger;
-    if (variant === 'secondary') return colors.surface;
+    if (variant === 'secondary') return colors.inputBackground;
     return colors.primary;
   };
 
@@ -32,8 +32,11 @@ export default function PrimaryButton({
     <TouchableOpacity
       style={[
         styles.button,
-        { backgroundColor: getBackgroundColor() },
-        variant === 'secondary' && { borderWidth: 1, borderColor: colors.border },
+        {
+          backgroundColor: getBackgroundColor(),
+          borderWidth: variant === 'secondary' ? 1 : 0,
+          borderColor: variant === 'secondary' ? colors.border : 'transparent',
+        },
         isActionDisabled && styles.disabled,
         style,
       ]}

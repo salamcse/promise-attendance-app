@@ -9,19 +9,19 @@ export const DARK_COLORS = {
   primaryPressed: '#D8B568',
   primaryMuted: 'rgba(199, 162, 80, 0.15)',
 
-  // Backgrounds & Surfaces
+  // Backgrounds & Surfaces (Unified dark canvas)
   brandDark: '#1D1D1B',
   background: '#0B0F19',
-  surface: '#131A2A',
-  surfaceHover: '#1B2438',
-  border: '#232D42',
+  surface: '#0B0F19',
+  surfaceHover: '#0B0F19',
+  border: '#1E293B',
 
   // Input & Card Specifics
-  inputBackground: '#0B0F19',
-  cardBorder: '#232D42',
-  clockedInCardBg: 'rgba(16, 185, 129, 0.04)',
-  clockedInBorder: 'rgba(16, 185, 129, 0.4)',
-  clockedOutBadgeBg: 'rgba(167, 176, 192, 0.1)',
+  inputBackground: '#131A2A',
+  cardBorder: '#1E293B',
+  clockedInCardBg: 'transparent',
+  clockedInBorder: '#1E293B',
+  clockedOutBadgeBg: 'rgba(167, 176, 192, 0.08)',
 
   // Typography Colors
   text: '#FFFFFF',
@@ -47,6 +47,7 @@ export const DARK_COLORS = {
   // System
   statusBarStyle: 'light-content',
   navShadow: '0 -2px 10px rgba(0, 0, 0, 0.25)',
+  headerShadow: '0 2px 10px rgba(0, 0, 0, 0.25)',
 };
 
 export const LIGHT_COLORS = {
@@ -56,19 +57,19 @@ export const LIGHT_COLORS = {
   primaryPressed: '#9E771D',
   primaryMuted: 'rgba(184, 142, 40, 0.12)',
 
-  // Backgrounds & Surfaces
+  // Backgrounds & Surfaces (Unified pure white canvas)
   brandDark: '#1D1D1B',
-  background: '#F4F6F9',
+  background: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceHover: '#F1F5F9',
+  surfaceHover: '#FFFFFF',
   border: '#E2E8F0',
 
   // Input & Card Specifics
   inputBackground: '#F8FAFC',
   cardBorder: '#E2E8F0',
-  clockedInCardBg: 'rgba(5, 150, 105, 0.04)',
-  clockedInBorder: 'rgba(5, 150, 105, 0.35)',
-  clockedOutBadgeBg: 'rgba(100, 116, 139, 0.1)',
+  clockedInCardBg: 'transparent',
+  clockedInBorder: '#E2E8F0',
+  clockedOutBadgeBg: 'rgba(100, 116, 139, 0.08)',
 
   // Typography Colors
   text: '#0F172A',
@@ -94,6 +95,7 @@ export const LIGHT_COLORS = {
   // System
   statusBarStyle: 'dark-content',
   navShadow: '0 -2px 10px rgba(0, 0, 0, 0.06)',
+  headerShadow: '0 2px 10px rgba(0, 0, 0, 0.06)',
 };
 
 // Default backwards compatibility fallback

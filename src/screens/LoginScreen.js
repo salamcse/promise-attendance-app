@@ -24,6 +24,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const trimmedEmail = email.trim();
   const isFormValid = trimmedEmail.length > 0 && password.length > 0;
@@ -70,11 +72,7 @@ export default function LoginScreen() {
           {/* Brand Header */}
           <View style={styles.brandHeader}>
             <Image
-              source={
-                isDark
-                  ? require('../../assets/logo.png')
-                  : require('../../assets/logo-light-theme.png')
-              }
+              source={require('../../assets/logo-light-theme.png')}
               style={styles.brandLogo}
               resizeMode="contain"
             />
@@ -84,9 +82,18 @@ export default function LoginScreen() {
           {/* Form */}
           <View style={styles.form}>
             {/* Email or Username Field */}
-            <Text style={styles.inputLabel}>Email or Username</Text>
-            <View style={styles.inputWrapper}>
-              <User size={18} color={colors.textSecondary} style={styles.inputIcon} />
+            <Text style={styles.inputLabel}>EMAIL OR USERNAME</Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                emailFocused && styles.inputWrapperFocused,
+              ]}
+            >
+              <User
+                size={18}
+                color={emailFocused ? '#B88E28' : '#64748B'}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 value={email}
@@ -94,8 +101,10 @@ export default function LoginScreen() {
                   setEmail(val);
                   if (authError) setAuthError(null);
                 }}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
                 placeholder="Enter email or username"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor="#94A3B8"
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="default"
@@ -104,9 +113,18 @@ export default function LoginScreen() {
             </View>
 
             {/* Password Field */}
-            <Text style={styles.inputLabel}>Password</Text>
-            <View style={styles.inputWrapper}>
-              <Lock size={18} color={colors.textSecondary} style={styles.inputIcon} />
+            <Text style={styles.inputLabel}>PASSWORD</Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                passwordFocused && styles.inputWrapperFocused,
+              ]}
+            >
+              <Lock
+                size={18}
+                color={passwordFocused ? '#B88E28' : '#64748B'}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 value={password}
@@ -114,8 +132,10 @@ export default function LoginScreen() {
                   setPassword(val);
                   if (authError) setAuthError(null);
                 }}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
                 placeholder="••••••••"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor="#94A3B8"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 returnKeyType="done"
@@ -127,9 +147,9 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
               >
                 {showPassword ? (
-                  <EyeOff size={18} color={colors.textSecondary} />
+                  <EyeOff size={18} color="#64748B" />
                 ) : (
-                  <Eye size={18} color={colors.textSecondary} />
+                  <Eye size={18} color="#64748B" />
                 )}
               </TouchableOpacity>
             </View>
@@ -160,36 +180,32 @@ function getStyles(colors) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: '#FFFFFF',
     },
     scrollContent: {
       flexGrow: 1,
       justifyContent: 'center',
       alignItems: 'center',
       padding: SPACING.xl,
+      backgroundColor: '#FFFFFF',
     },
     card: {
       width: '100%',
       maxWidth: 420,
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.xl,
-      padding: SPACING.xxl,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.lg,
       position: 'relative',
     },
     topRow: {
       flexDirection: 'row',
       justifyContent: 'flex-end',
-      marginBottom: SPACING.xs,
+      marginBottom: SPACING.sm,
     },
     themeToggleBtn: {
-      width: 32,
-      height: 32,
+      width: 36,
+      height: 36,
       borderRadius: RADIUS.full,
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
+      backgroundColor: '#F1F5F9',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -204,34 +220,40 @@ function getStyles(colors) {
     },
     brandSubtitle: {
       ...TYPOGRAPHY.caption,
-      color: colors.textMuted,
+      color: '#64748B',
       marginTop: 4,
     },
     form: {
       gap: SPACING.sm,
     },
     inputLabel: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '700',
-      color: colors.textSecondary,
+      color: '#475569',
+      letterSpacing: 0.8,
       marginTop: SPACING.xs,
+      textTransform: 'uppercase',
     },
     inputWrapper: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.inputBackground,
+      backgroundColor: '#F8FAFC',
       borderRadius: RADIUS.md,
-      paddingHorizontal: SPACING.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      height: 48,
+      paddingHorizontal: SPACING.lg,
+      height: 50,
+      borderWidth: 1.5,
+      borderColor: '#E2E8F0',
+    },
+    inputWrapperFocused: {
+      borderColor: '#B88E28',
+      backgroundColor: '#FFFFFF',
     },
     inputIcon: {
       marginRight: SPACING.sm,
     },
     input: {
       flex: 1,
-      color: colors.text,
+      color: '#0F172A',
       fontSize: 14,
       height: '100%',
       ...Platform.select({
@@ -245,16 +267,14 @@ function getStyles(colors) {
       padding: SPACING.xs,
     },
     errorBox: {
-      backgroundColor: colors.dangerBg,
+      backgroundColor: '#FEE2E2',
       padding: SPACING.md,
       borderRadius: RADIUS.sm,
       marginTop: SPACING.xs,
-      borderWidth: 1,
-      borderColor: colors.logoutPillBorder,
     },
     errorText: {
       fontSize: 12,
-      color: colors.errorText,
+      color: '#DC2626',
       textAlign: 'center',
       fontWeight: '500',
     },

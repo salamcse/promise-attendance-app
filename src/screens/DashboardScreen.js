@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../context/AttendanceContext';
 import { useTheme } from '../context/ThemeContext';
@@ -8,7 +8,7 @@ import AppHeader from '../components/AppHeader';
 import StatusCard from '../components/StatusCard';
 import SummaryStats from '../components/SummaryStats';
 import PrimaryButton from '../components/PrimaryButton';
-import { Calendar } from 'lucide-react-native';
+import { Calendar, ShieldCheck } from 'lucide-react-native';
 import { SPACING } from '../constants/theme';
 
 export default function DashboardScreen({ onNavigateHistory }) {
@@ -52,7 +52,7 @@ export default function DashboardScreen({ onNavigateHistory }) {
           />
         }
       >
-        {/* Status Check-in / Check-out Card */}
+        {/* Status Check-in / Check-out Hero Section */}
         <StatusCard
           isClockedIn={isClockedIn}
           formattedTimer={formattedTimer}
@@ -62,7 +62,7 @@ export default function DashboardScreen({ onNavigateHistory }) {
           actionError={actionError}
         />
 
-        {/* 30-Day Summary Statistics */}
+        {/* 30-Day Summary Statistics Section */}
         <SummaryStats stats={attendanceStats} />
 
         {/* View Attendance History Navigation CTA */}
@@ -74,6 +74,11 @@ export default function DashboardScreen({ onNavigateHistory }) {
             icon={<Calendar size={18} color={colors.primary} />}
             textStyle={styles.historyBtnText}
           />
+
+          <View style={styles.verifiedRow}>
+            <ShieldCheck size={14} color={colors.textMuted} style={styles.verifiedIcon} />
+            <Text style={styles.verifiedText}>Location & network auto-verified</Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -94,11 +99,27 @@ function getStyles(colors) {
     },
     historyBtnWrapper: {
       marginHorizontal: SPACING.xl,
-      marginTop: SPACING.xl,
+      marginTop: SPACING.lg,
+      alignItems: 'center',
     },
     historyBtnText: {
       color: colors.text,
-      fontSize: 14,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    verifiedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.md,
+    },
+    verifiedIcon: {
+      marginRight: 6,
+    },
+    verifiedText: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textMuted,
     },
   });
 }
+

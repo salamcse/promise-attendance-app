@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, Platform } from 'react-native';
+import { FileText } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, RADIUS } from '../constants/theme';
 import PrimaryButton from './PrimaryButton';
@@ -13,8 +14,9 @@ export default function StatusCard({
   actionError = null,
 }) {
   const [note, setNote] = useState('');
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const [isFocused, setIsFocused] = useState(false);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors, isDark, isClockedIn), [colors, isDark, isClockedIn]);
 
   useEffect(() => {
     setNote('');
@@ -29,12 +31,7 @@ export default function StatusCard({
   };
 
   return (
-    <View
-      style={[
-        styles.card,
-        isClockedIn ? styles.cardClockedIn : styles.cardClockedOut,
-      ]}
-    >
+    <View style={styles.section}>
       {/* State Badge */}
       <View
         style={[
@@ -60,19 +57,36 @@ export default function StatusCard({
 
       {/* Stopwatch Display */}
       <Text style={styles.timerText}>{formattedTimer}</Text>
+      <Text style={styles.timerSubText}>
+        {isClockedIn ? "Today's shift elapsed time" : 'Ready to record attendance'}
+      </Text>
 
       {/* Note Input Field */}
       <View style={styles.noteWrapper}>
-        <Text style={styles.noteLabel}>Note / Reason</Text>
-        <TextInput
-          style={styles.noteInput}
-          value={note}
-          onChangeText={setNote}
-          placeholder="Add note (Required outside office)"
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="sentences"
-          returnKeyType="done"
-        />
+        <Text style={styles.noteLabel}>NOTE / REASON</Text>
+        <View
+          style={[
+            styles.inputWrapper,
+            isFocused && styles.inputWrapperFocused,
+          ]}
+        >
+          <FileText
+            size={16}
+            color={isFocused ? colors.primary : colors.textMuted}
+            style={styles.inputIcon}
+          />
+          <TextInput
+            style={styles.noteInput}
+            value={note}
+            onChangeText={setNote}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder="Add note (Required outside office)"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="sentences"
+            returnKeyType="done"
+          />
+        </View>
       </View>
 
       {/* Inline Action Error Message */}
@@ -95,45 +109,40 @@ export default function StatusCard({
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, isDark, isClockedIn) {
   return StyleSheet.create({
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.xl,
-      padding: SPACING.xxl,
+    section: {
+      width: '100%',
       alignItems: 'center',
-      marginHorizontal: SPACING.xl,
-      marginTop: SPACING.xl,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-    },
-    cardClockedIn: {
-      borderColor: colors.clockedInBorder,
-      backgroundColor: colors.clockedInCardBg,
-    },
-    cardClockedOut: {
-      borderColor: colors.cardBorder,
+      paddingHorizontal: SPACING.xl,
+      paddingTop: SPACING.lg + 2,
+      paddingBottom: SPACING.lg + 2,
       backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
     badge: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.xs + 2,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
       borderRadius: RADIUS.full,
-      marginBottom: SPACING.lg,
+      marginBottom: SPACING.sm + 2,
+      borderWidth: 1,
     },
     badgeClockedIn: {
       backgroundColor: colors.successBg,
+      borderColor: colors.statusPillBorder,
     },
     badgeClockedOut: {
       backgroundColor: colors.clockedOutBadgeBg,
+      borderColor: colors.border,
     },
     dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      marginRight: SPACING.sm,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: SPACING.sm - 2,
     },
     dotGreen: {
       backgroundColor: colors.success,
@@ -142,9 +151,9 @@ function getStyles(colors) {
       backgroundColor: colors.textMuted,
     },
     badgeText: {
-      fontSize: 11,
-      fontWeight: '800',
-      letterSpacing: 0.8,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.5,
     },
     textGreen: {
       color: colors.success,
@@ -153,32 +162,53 @@ function getStyles(colors) {
       color: colors.textSecondary,
     },
     timerText: {
-      fontSize: 42,
-      fontWeight: '800',
+      fontSize: 34,
+      fontWeight: '700',
       color: colors.text,
       fontVariant: ['tabular-nums'],
-      letterSpacing: 2,
+      letterSpacing: 1.5,
+    },
+    timerSubText: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textMuted,
+      marginTop: 3,
       marginBottom: SPACING.lg,
     },
     noteWrapper: {
       width: '100%',
-      marginBottom: SPACING.md,
+      marginBottom: SPACING.md + 2,
     },
     noteLabel: {
-      fontSize: 12,
+      fontSize: 10,
       fontWeight: '600',
-      color: colors.textSecondary,
+      letterSpacing: 0.6,
+      color: colors.textMuted,
       marginBottom: 6,
+      textTransform: 'uppercase',
     },
-    noteInput: {
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: colors.inputBackground,
       borderRadius: RADIUS.md,
-      borderWidth: 1,
-      borderColor: colors.border,
       paddingHorizontal: SPACING.md,
       height: 44,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    inputWrapperFocused: {
+      borderColor: colors.primary,
+      backgroundColor: colors.surface,
+    },
+    inputIcon: {
+      marginRight: SPACING.sm,
+    },
+    noteInput: {
+      flex: 1,
+      height: '100%',
       color: colors.text,
-      fontSize: 14,
+      fontSize: 13,
       ...Platform.select({
         web: {
           outlineStyle: 'none',
@@ -191,16 +221,16 @@ function getStyles(colors) {
       paddingHorizontal: SPACING.md,
       paddingVertical: SPACING.sm,
       borderRadius: RADIUS.sm,
-      marginBottom: SPACING.lg,
-      borderWidth: 1,
-      borderColor: colors.logoutPillBorder,
+      marginBottom: SPACING.md,
       width: '100%',
+      borderWidth: 1,
+      borderColor: colors.danger,
     },
     errorText: {
       color: colors.errorText,
       fontSize: 12,
       textAlign: 'center',
-      fontWeight: '500',
+      fontWeight: '600',
     },
     actionBtn: {
       width: '100%',

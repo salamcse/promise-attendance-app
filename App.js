@@ -35,8 +35,8 @@ function AuthenticatedApp() {
   }, [currentScreen]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.surface }]} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.surface} />
       <View style={[styles.appFrame, { backgroundColor: colors.background }]}>
         <View style={styles.screenContainer}>
           {currentScreen === 'history' ? (
@@ -64,8 +64,8 @@ function MainNavigator() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#FFFFFF' }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <LoginScreen />
       </SafeAreaView>
     );

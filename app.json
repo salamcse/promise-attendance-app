@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TimePulse Attendance",
+    "name": "Promise Attendance",
     "slug": "timepulse-attendance",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,10 +33,21 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "TimePulse needs your location to verify attendance."
+          "locationAlwaysAndWhenInUsePermission": "Promise Attendance needs your location to verify attendance."
         }
       ],
-      "expo-font"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": ["arm64-v8a"],
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "useLegacyPackaging": true,
+            "gifEnabled": false
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {

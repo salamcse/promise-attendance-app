@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 import { useAttendance } from '../context/AttendanceContext';
 import { useTheme } from '../context/ThemeContext';
 import { ArrowLeft, Clock } from 'lucide-react-native';
@@ -17,8 +17,8 @@ export default function HistoryScreen({ onBack }) {
     screenError,
     refreshAttendance,
   } = useAttendance();
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   return (
     <View style={styles.container}>
@@ -104,18 +104,33 @@ export default function HistoryScreen({ onBack }) {
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, isDark) {
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
     topHeader: {
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.md,
+      paddingHorizontal: SPACING.xl,
+      paddingVertical: SPACING.lg,
+      backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-      backgroundColor: colors.surface,
+      zIndex: 10,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: isDark ? 0.2 : 0.05,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: isDark ? 8 : 4,
+        },
+        web: {
+          boxShadow: colors.headerShadow,
+        },
+      }),
     },
     backBtn: {
       flexDirection: 'row',
@@ -131,7 +146,8 @@ function getStyles(colors) {
       flex: 1,
     },
     content: {
-      padding: SPACING.xl,
+      paddingHorizontal: SPACING.xl,
+      paddingTop: SPACING.lg,
       paddingBottom: SPACING.xxl * 2.5,
     },
     sectionTitle: {
@@ -140,15 +156,12 @@ function getStyles(colors) {
       color: colors.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 1,
-      marginBottom: SPACING.md,
+      marginBottom: SPACING.sm,
     },
     recordCard: {
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.md,
-      padding: SPACING.lg,
-      marginBottom: SPACING.md,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
+      paddingVertical: SPACING.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
     cardHeader: {
       flexDirection: 'row',
