@@ -48,27 +48,27 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Top-Right Theme Toggle (Outside form for clean centered balance) */}
+      <View style={styles.topNav}>
+        <TouchableOpacity
+          style={styles.themeToggleBtn}
+          onPress={toggleTheme}
+          activeOpacity={0.7}
+          accessibilityLabel={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+        >
+          {isDark ? (
+            <Sun size={16} color="#F59E0B" />
+          ) : (
+            <Moon size={16} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          {/* Top Row: Theme Toggle */}
-          <View style={styles.topRow}>
-            <TouchableOpacity
-              style={styles.themeToggleBtn}
-              onPress={toggleTheme}
-              activeOpacity={0.7}
-              accessibilityLabel={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-            >
-              {isDark ? (
-                <Sun size={15} color="#F59E0B" />
-              ) : (
-                <Moon size={15} color={colors.primary} />
-              )}
-            </TouchableOpacity>
-          </View>
-
           {/* Brand Header */}
           <View style={styles.brandHeader}>
             <Image
@@ -196,16 +196,19 @@ function getStyles(colors) {
       paddingVertical: SPACING.lg,
       position: 'relative',
     },
-    topRow: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      marginBottom: SPACING.sm,
+    topNav: {
+      position: 'absolute',
+      top: SPACING.lg,
+      right: SPACING.lg,
+      zIndex: 20,
     },
     themeToggleBtn: {
-      width: 36,
-      height: 36,
+      width: 38,
+      height: 38,
       borderRadius: RADIUS.full,
-      backgroundColor: '#F1F5F9',
+      backgroundColor: '#F8FAFC',
+      borderWidth: 1,
+      borderColor: '#E2E8F0',
       alignItems: 'center',
       justifyContent: 'center',
     },

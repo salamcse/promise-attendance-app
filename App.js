@@ -15,6 +15,7 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import LoadingState from './src/components/LoadingState';
 import BottomTabBar from './src/components/BottomTabBar';
+import AppSplashScreen from './src/components/AppSplashScreen';
 
 function AuthenticatedApp() {
   const [currentScreen, setCurrentScreen] = useState('dashboard');
@@ -56,10 +57,15 @@ function AuthenticatedApp() {
 
 function MainNavigator() {
   const { isAuthenticated, isRestoringSession } = useAuth();
-  const { colors, isDark } = useTheme();
+  const [isSplashDone, setIsSplashDone] = useState(false);
 
-  if (isRestoringSession) {
-    return <LoadingState message="Starting Promise Attendance..." />;
+  if (isRestoringSession || !isSplashDone) {
+    return (
+      <AppSplashScreen
+        isReady={!isRestoringSession}
+        onFinish={() => setIsSplashDone(true)}
+      />
+    );
   }
 
   if (!isAuthenticated) {
