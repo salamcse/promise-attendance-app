@@ -199,12 +199,16 @@ const THUMB_WIDTH = 32;
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
   },
   centerContent: {
+    flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
@@ -215,8 +219,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   logo: {
-    width: 200,
-    height: 65,
+    width: 210,
+    height: 68,
   },
   subtitleWrapper: {
     marginTop: 2,
@@ -242,6 +246,8 @@ const styles = StyleSheet.create({
   footerWatermark: {
     position: 'absolute',
     bottom: SPACING.xxl,
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   watermarkText: {

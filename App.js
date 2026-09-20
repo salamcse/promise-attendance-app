@@ -61,10 +61,12 @@ function MainNavigator() {
 
   if (isRestoringSession || !isSplashDone) {
     return (
-      <AppSplashScreen
-        isReady={!isRestoringSession}
-        onFinish={() => setIsSplashDone(true)}
-      />
+      <View style={styles.splashContainer}>
+        <AppSplashScreen
+          isReady={!isRestoringSession}
+          onFinish={() => setIsSplashDone(true)}
+        />
+      </View>
     );
   }
 
@@ -109,5 +111,10 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flex: 1,
+  },
+  splashContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
 });
