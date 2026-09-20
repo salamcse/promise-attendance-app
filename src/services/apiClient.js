@@ -1,14 +1,27 @@
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://dev.promiseassets.com/api/v1';
+function getSanitizedBaseUrl() {
+  let url = (process.env.EXPO_PUBLIC_API_URL || 'https://dev.promiseassets.com/api/v1').trim();
+  url = url.replace(/\/+$/, '');
+  if (url.endsWith('/hrm')) {
+    url = url.slice(0, -4);
+  }
+  return url;
+}
+
+const BASE_URL = getSanitizedBaseUrl();
 
 export async function apiRequest(endpoint, { method = 'GET', body, token, timeoutMs = 15000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const fullUrl = `${BASE_URL}${cleanEndpoint}`;
+
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       method,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -18,8 +31,16 @@ export async function apiRequest(endpoint, { method = 'GET', body, token, timeou
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const error = new Error(data?.message || data?.error || `Request failed (${response.status})`);
+      let msg = data?.message || data?.error;
+      if (!msg && data?.errors && typeof data.errors === 'object') {
+        const firstKey = Object.keys(data.errors)[0];
+        if (firstKey && Array.isArray(data.errors[firstKey]) && data.errors[firstKey].length > 0) {
+          msg = data.errors[firstKey][0];
+        }
+      }
+      const error = new Error(msg || `Request failed with status ${response.status}`);
       error.status = response.status;
+      error.data = data;
       throw error;
     }
 
@@ -37,5 +58,8 @@ export async function apiRequest(endpoint, { method = 'GET', body, token, timeou
 }
 
 export function getErrorMessage(error) {
-  return error?.message || 'Something went wrong. Please try again.';
+  if (!error) return 'An unexpected error occurred.';
+  if (typeof error === 'string') return error;
+  if (error.message) return error.message;
+  return 'Something went wrong. Please try again.';
 }

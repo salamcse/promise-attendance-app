@@ -18,15 +18,24 @@ export async function login(email, password) {
     body: payload,
   });
 
-  const responseUser = data?.user || data?.employee || data?.data?.user || data;
-  const token = responseUser?.accessToken || data?.token || data?.access_token || data?.data?.token;
+  const responseUser = data?.user || data?.employee || data?.data?.user || data?.data?.employee || data?.data || data;
+  const token =
+    data?.access_token ||
+    data?.token ||
+    data?.data?.access_token ||
+    data?.data?.token ||
+    responseUser?.access_token ||
+    responseUser?.accessToken ||
+    responseUser?.token;
 
   if (!token) {
     throw new Error('Authentication failed: Access token missing in response');
   }
 
+  const rawId = responseUser?.id ?? responseUser?.user_id ?? responseUser?.employee_id ?? responseUser?.phone ?? email.trim();
+
   const user = {
-    id: responseUser?.id || responseUser?.phone || email.trim(),
+    id: String(rawId),
     name: responseUser?.name || email.trim(),
     email: responseUser?.email || email.trim(),
     phone: responseUser?.phone || '',
@@ -36,10 +45,14 @@ export async function login(email, password) {
 
   delete user.accessToken;
 
-  await AsyncStorage.multiSet([
-    [TOKEN_KEY, token],
-    [USER_KEY, JSON.stringify(user)],
-  ]);
+  try {
+    await AsyncStorage.multiSet([
+      [TOKEN_KEY, token],
+      [USER_KEY, JSON.stringify(user)],
+    ]);
+  } catch (storageErr) {
+    console.warn('[authService] Failed to persist session to AsyncStorage:', storageErr);
+  }
 
   return { token, user };
 }

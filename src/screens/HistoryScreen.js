@@ -276,14 +276,17 @@ export default function HistoryScreen({ onBack }) {
           ) : (
             filteredRecords.map((item, index) => {
               const dateStr = formatShortDate(item.date || item.clockInTime);
-              const inTime = item.clockInTimeFormatted || formatTime(item.clockInTime);
+              const inTime = item.firstClockIn || item.clockInTimeFormatted || (item.clockInTime ? formatTime(item.clockInTime) : '--');
               const outTime = item.isActiveSession
                 ? 'Active'
-                : item.clockOutTimeFormatted || (item.clockOutTime ? formatTime(item.clockOutTime) : '--');
-              const durationText = item.durationText || `${item.durationMinutes || 0}m`;
-              const isActive = item.isActiveSession || (!item.clockOutTime && !item.clockOutTimeFormatted);
-              const isLate = (item.status || '').toLowerCase() === 'late';
+                : item.lastClockOut || item.clockOutTimeFormatted || (item.clockOutTime ? formatTime(item.clockOutTime) : '--');
+              const durationText = item.totalWorkText || item.durationText || (item.totalWorkMinutes ? `${Math.floor(item.totalWorkMinutes / 60)}h ${item.totalWorkMinutes % 60}m` : `${item.durationMinutes || 0}m`);
+              const isActive = item.isActiveSession || (!item.lastClockOut && !item.clockOutTime && !item.clockOutTimeFormatted);
+              const status = (item.status || '').toLowerCase();
+              const isLate = status === 'late';
+              const isAbsent = status === 'absent';
               const isApproved = item.approvalStatus === 'approved';
+              const sessionsCount = item.sessionsCount || (item.sessions ? item.sessions.length : 1);
 
               return (
                 <TouchableOpacity
@@ -304,6 +307,10 @@ export default function HistoryScreen({ onBack }) {
                       ) : isLate ? (
                         <View style={[styles.miniBadge, styles.miniBadgeLate]}>
                           <Text style={styles.miniBadgeTextLate}>Late</Text>
+                        </View>
+                      ) : isAbsent ? (
+                        <View style={[styles.miniBadge, styles.miniBadgeAbsent]}>
+                          <Text style={styles.miniBadgeTextAbsent}>Absent</Text>
                         </View>
                       ) : (
                         <View style={[styles.miniBadge, styles.miniBadgePresent]}>
@@ -327,6 +334,12 @@ export default function HistoryScreen({ onBack }) {
                           {isApproved ? 'Approved' : 'Pending'}
                         </Text>
                       </View>
+
+                      {sessionsCount > 1 && (
+                        <View style={[styles.miniBadge, styles.miniBadgeSession]}>
+                          <Text style={styles.miniBadgeTextSession}>{sessionsCount} punches</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
 
@@ -539,6 +552,12 @@ function getStyles(colors, isDark) {
     miniBadgePending: {
       backgroundColor: 'rgba(245, 158, 11, 0.10)',
     },
+    miniBadgeAbsent: {
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    },
+    miniBadgeSession: {
+      backgroundColor: colors.primaryMuted,
+    },
     miniBadgeTextLate: {
       fontSize: 10,
       fontWeight: '700',
@@ -554,6 +573,11 @@ function getStyles(colors, isDark) {
       fontWeight: '700',
       color: colors.success,
     },
+    miniBadgeTextAbsent: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#EF4444',
+    },
     miniBadgeTextApproved: {
       fontSize: 10,
       fontWeight: '600',
@@ -563,6 +587,11 @@ function getStyles(colors, isDark) {
       fontSize: 10,
       fontWeight: '600',
       color: '#F59E0B',
+    },
+    miniBadgeTextSession: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.primary,
     },
     timesCol: {
       flex: 1.4,

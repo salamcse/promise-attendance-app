@@ -18,7 +18,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   CheckCircle2,
-  Globe,
+  Layers,
 } from 'lucide-react-native';
 import { formatDate } from '../utils/dateUtils';
 import { SPACING, RADIUS } from '../constants/theme';
@@ -32,23 +32,17 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
   const dateStr = formatDate(record.date || record.clockInTime);
   const status = (record.status || '').toLowerCase();
   const isLate = status === 'late';
-  const isActive = record.isActiveSession || (!record.clockOutTime && !record.clockOutTimeFormatted);
+  const isActive = record.isActiveSession || (!record.lastClockOut && !record.clockOutTime && !record.clockOutTimeFormatted);
   const isApproved = record.approvalStatus === 'approved';
-  const isSuspicious = Boolean(record.security?.is_suspicious);
 
-  const inTime = record.clockInTimeFormatted || record.clockIn?.time || '--';
-  const inLocation = record.clockInLocation || record.clockIn?.location || 'Remote';
-  const inDevice = (record.clockInDevice || record.clockIn?.device || 'pc').toLowerCase();
-  const inIp = record.clockIn?.ip || '103.177.123.41';
-  const inAddress = record.clockIn?.address;
+  const sessions = Array.isArray(record.sessions) && record.sessions.length > 0
+    ? record.sessions
+    : null;
 
-  const outTime = isActive
-    ? 'In Progress'
-    : record.clockOutTimeFormatted || record.clockOut?.time || '--';
-  const outLocation = record.clockOutLocation || record.clockOut?.location || 'Remote';
-  const outDevice = (record.clockOutDevice || record.clockOut?.device || 'pc').toLowerCase();
-  const outIp = record.clockOut?.ip || '103.177.123.41';
-  const outAddress = record.clockOut?.address;
+  const totalDuration = record.totalWorkText || record.durationText || `${record.totalWorkMinutes || record.durationMinutes || 0}m`;
+  const locationName = record.location;
+
+  const anySuspicious = (sessions && sessions.some((s) => s.security?.is_suspicious)) || Boolean(record.security?.is_suspicious);
 
   return (
     <Modal
@@ -123,122 +117,160 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
 
             {/* Total Duration Banner */}
             <View style={styles.durationBanner}>
-              <Clock size={16} color={colors.primary} style={{ marginRight: 8 }} />
-              <Text style={styles.durationBannerLabel}>Total Duration:</Text>
-              <Text style={styles.durationBannerValue}>
-                {isActive ? 'Session Active' : record.durationText || `${record.durationMinutes || 0}m`}
-              </Text>
-            </View>
-
-            {/* Clock In Section */}
-            <View style={styles.sessionSection}>
-              <Text style={styles.sectionHeading}>CLOCK IN DETAILS</Text>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Time</Text>
-                <Text style={styles.detailValBold}>{inTime}</Text>
+              <View style={styles.durationLeft}>
+                <Clock size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                <Text style={styles.durationBannerLabel}>Total Work:</Text>
+                <Text style={styles.durationBannerValue}>
+                  {isActive ? 'Session Active' : totalDuration}
+                </Text>
               </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Location</Text>
-                <View style={styles.inlineVal}>
-                  <MapPin size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-                  <Text style={styles.detailVal}>{inLocation}</Text>
-                </View>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Device</Text>
-                <View style={styles.inlineVal}>
-                  {inDevice === 'pc' ? (
-                    <Monitor size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-                  ) : (
-                    <Smartphone size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-                  )}
-                  <Text style={styles.detailVal}>{inDevice === 'pc' ? 'Desktop PC' : 'Mobile'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>IP Address</Text>
-                <View style={styles.inlineVal}>
-                  <Globe size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-                  <Text style={styles.detailVal}>{inIp}</Text>
-                </View>
-              </View>
-
-              {inAddress && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Address</Text>
-                  <Text style={styles.detailVal}>{inAddress}</Text>
+              {sessions && sessions.length > 1 && (
+                <View style={styles.sessionsCountBadge}>
+                  <Layers size={12} color={colors.primary} style={{ marginRight: 4 }} />
+                  <Text style={styles.sessionsCountText}>
+                    {sessions.length} sessions
+                  </Text>
                 </View>
               )}
             </View>
 
-            {/* Clock Out Section */}
-            <View style={styles.sessionSection}>
-              <Text style={styles.sectionHeading}>CLOCK OUT DETAILS</Text>
-
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Time</Text>
-                <Text style={styles.detailValBold}>{outTime}</Text>
+            {/* Location Banner (if available) */}
+            {Boolean(locationName) && (
+              <View style={styles.locationBanner}>
+                <MapPin size={14} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                <Text style={styles.locationText}>{locationName}</Text>
               </View>
+            )}
 
-              {!isActive && (
-                <>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Location</Text>
-                    <View style={styles.inlineVal}>
-                      <MapPin size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-                      <Text style={styles.detailVal}>{outLocation}</Text>
-                    </View>
-                  </View>
+            {/* Render Sessions List */}
+            {sessions ? (
+              sessions.map((sess, idx) => {
+                const sIn = sess.clockIn || {};
+                const sOut = sess.clockOut || {};
+                const sInDevice = (sIn.device || 'phone').toLowerCase();
+                const sOutDevice = (sOut.device || 'phone').toLowerCase();
+                const sIsActive = !sOut.time && !sOut.datetime;
+                const sSuspicious = Boolean(sess.security?.is_suspicious);
 
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Device</Text>
-                    <View style={styles.inlineVal}>
-                      {outDevice === 'pc' ? (
-                        <Monitor size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-                      ) : (
-                        <Smartphone size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
+                return (
+                  <View key={sess.id || `sess-${idx}`} style={styles.sessionCard}>
+                    <View style={styles.sessionCardHeader}>
+                      <View style={styles.sessionIndexPill}>
+                        <Text style={styles.sessionIndexText}>
+                          {sessions.length > 1 ? `Session ${idx + 1}` : 'Session Details'}
+                        </Text>
+                      </View>
+                      {Boolean(sess.durationText) && (
+                        <View style={styles.sessionDurationPill}>
+                          <Clock size={11} color={colors.primary} style={{ marginRight: 4 }} />
+                          <Text style={styles.sessionDurationText}>{sess.durationText}</Text>
+                        </View>
                       )}
-                      <Text style={styles.detailVal}>{outDevice === 'pc' ? 'Desktop PC' : 'Mobile'}</Text>
                     </View>
+
+                    {/* Clock In */}
+                    <View style={styles.subSessionSection}>
+                      <Text style={styles.subSectionHeading}>CLOCK IN</Text>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Time</Text>
+                        <Text style={styles.detailValBold}>{sIn.time || '--'}</Text>
+                      </View>
+
+                      {Boolean(sIn.location || sIn.address) && (
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>Location</Text>
+                          <View style={styles.inlineVal}>
+                            <MapPin size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                            <Text style={styles.detailVal}>
+                              {sIn.address || sIn.location || 'Remote'}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Device & IP</Text>
+                        <View style={styles.inlineVal}>
+                          {sInDevice === 'pc' ? (
+                            <Monitor size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                          ) : (
+                            <Smartphone size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                          )}
+                          <Text style={styles.detailVal}>
+                            {sInDevice === 'pc' ? 'PC' : 'Mobile'}
+                            {sIn.ip ? ` • ${sIn.ip}` : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Divider */}
+                    <View style={styles.sessionDivider} />
+
+                    {/* Clock Out */}
+                    <View style={styles.subSessionSection}>
+                      <Text style={styles.subSectionHeading}>CLOCK OUT</Text>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Time</Text>
+                        <Text style={[styles.detailValBold, sIsActive && styles.textActive]}>
+                          {sIsActive ? 'In Progress' : sOut.time || '--'}
+                        </Text>
+                      </View>
+
+                      {!sIsActive && (
+                        <>
+                          {Boolean(sOut.location || sOut.address) && (
+                            <View style={styles.detailRow}>
+                              <Text style={styles.detailLabel}>Location</Text>
+                              <View style={styles.inlineVal}>
+                                <MapPin size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                <Text style={styles.detailVal}>
+                                  {sOut.address || sOut.location || 'Remote'}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
+
+                          <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>Device & IP</Text>
+                            <View style={styles.inlineVal}>
+                              {sOutDevice === 'pc' ? (
+                                <Monitor size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                              ) : (
+                                <Smartphone size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                              )}
+                              <Text style={styles.detailVal}>
+                                {sOutDevice === 'pc' ? 'PC' : 'Mobile'}
+                                {sOut.ip ? ` • ${sOut.ip}` : ''}
+                              </Text>
+                            </View>
+                          </View>
+                        </>
+                      )}
+                    </View>
+
+                    {/* Suspicious warning for this session */}
+                    {sSuspicious && (
+                      <View style={styles.securityWarning}>
+                        <AlertTriangle size={15} color="#EF4444" style={{ marginRight: 8 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.securityWarningTitle}>Suspicious Travel Flagged</Text>
+                          <Text style={styles.securityWarningBody}>{sess.security?.details}</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
+                );
+              })
+            ) : null}
 
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>IP Address</Text>
-                    <View style={styles.inlineVal}>
-                      <Globe size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-                      <Text style={styles.detailVal}>{outIp}</Text>
-                    </View>
-                  </View>
-
-                  {outAddress && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Address</Text>
-                      <Text style={styles.detailVal}>{outAddress}</Text>
-                    </View>
-                  )}
-                </>
-              )}
-            </View>
-
-            {/* Security Check Section */}
-            {isSuspicious ? (
-              <View style={styles.securityWarning}>
-                <AlertTriangle size={16} color="#EF4444" style={{ marginRight: 8 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.securityWarningTitle}>Suspicious Travel Flagged</Text>
-                  <Text style={styles.securityWarningBody}>{record.security?.details}</Text>
-                </View>
-              </View>
-            ) : (
+            {/* Overall Security Check Footer */}
+            {!anySuspicious ? (
               <View style={styles.securitySafe}>
                 <ShieldCheck size={16} color={colors.success} style={{ marginRight: 8 }} />
                 <Text style={styles.securitySafeText}>Security & location auto-verified</Text>
               </View>
-            )}
+            ) : null}
           </ScrollView>
 
           {/* Footer Close Button */}
@@ -371,11 +403,16 @@ function getStyles(colors, isDark) {
     durationBanner: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       backgroundColor: colors.primaryMuted,
       paddingHorizontal: SPACING.md,
       paddingVertical: SPACING.sm + 2,
       borderRadius: RADIUS.md,
-      marginBottom: SPACING.lg,
+      marginBottom: SPACING.md,
+    },
+    durationLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
     durationBannerLabel: {
       fontSize: 13,
@@ -388,25 +425,94 @@ function getStyles(colors, isDark) {
       color: colors.primary,
       marginLeft: 6,
     },
-    sessionSection: {
+    sessionsCountBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: RADIUS.xs,
+    },
+    sessionsCountText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    locationBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.inputBackground,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+      borderRadius: RADIUS.sm,
+      marginBottom: SPACING.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    locationText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    sessionCard: {
       backgroundColor: colors.inputBackground,
       borderRadius: RADIUS.md,
       padding: SPACING.md,
       marginBottom: SPACING.md,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
-    sectionHeading: {
-      fontSize: 10,
-      fontWeight: '700',
-      letterSpacing: 0.8,
-      color: colors.textMuted,
+    sessionCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       marginBottom: SPACING.sm,
+    },
+    sessionIndexPill: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: RADIUS.xs,
+      backgroundColor: colors.surface,
+    },
+    sessionIndexText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    sessionDurationPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryMuted,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: RADIUS.xs,
+    },
+    sessionDurationText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    subSessionSection: {
+      marginVertical: 2,
+    },
+    subSectionHeading: {
+      fontSize: 9,
+      fontWeight: '700',
+      letterSpacing: 0.6,
+      color: colors.textMuted,
+      marginBottom: 4,
       textTransform: 'uppercase',
+    },
+    sessionDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: SPACING.sm,
     },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 4,
+      paddingVertical: 3,
     },
     detailLabel: {
       fontSize: 12,
@@ -414,13 +520,13 @@ function getStyles(colors, isDark) {
       fontWeight: '500',
     },
     detailValBold: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
       color: colors.text,
       fontVariant: ['tabular-nums'],
     },
     detailVal: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '600',
       color: colors.text,
     },
@@ -436,7 +542,7 @@ function getStyles(colors, isDark) {
       borderRadius: RADIUS.md,
       borderLeftWidth: 3,
       borderLeftColor: '#EF4444',
-      marginTop: SPACING.xs,
+      marginTop: SPACING.sm,
     },
     securityWarningTitle: {
       fontSize: 12,

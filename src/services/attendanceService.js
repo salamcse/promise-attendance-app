@@ -172,27 +172,96 @@ export async function getAttendanceHistory(token, userId, options = {}) {
   const records = rawList.map((raw, i) => {
     const id = String(raw.id || raw.session_id || `rec-${i}`);
     const date = raw.date || (raw.clock_in?.datetime || raw.clock_in_time)?.split('T')[0] || '';
-    const status = raw.status || (raw.duration_seconds || raw.duration_minutes ? 'present' : 'absent');
+    const status = (raw.status || (raw.total_work_minutes || raw.duration_seconds || raw.duration_minutes ? 'present' : 'absent')).toLowerCase();
     const approvalStatus = raw.approval_status || 'approved';
-    const isActiveSession = Boolean(raw.is_active_session || (raw.clock_in && !raw.clock_out?.datetime));
+    const location = raw.location || '';
+    const isActiveSession = Boolean(raw.is_active_session ?? (raw.clock_in && !raw.clock_out?.datetime));
 
-    const clockIn = raw.clock_in || {};
+    // Daily summary fields from new schema
+    const firstClockIn = raw.first_clock_in || raw.clock_in?.time || raw.clock_in_time || '';
+    const lastClockOut = raw.last_clock_out || raw.clock_out?.time || raw.clock_out_time || '';
+    const totalWorkMinutes = Number(raw.total_work_minutes ?? raw.duration_minutes ?? (raw.duration_seconds ? Math.round(raw.duration_seconds / 60) : 0));
+    const totalWorkText = raw.total_work_text || raw.duration_text || (totalWorkMinutes > 0 ? `${Math.floor(totalWorkMinutes / 60)}h ${totalWorkMinutes % 60}m` : '');
+    const sessionsMinutes = raw.sessions_minutes != null ? Number(raw.sessions_minutes) : null;
+    const sessionsText = raw.sessions_text || '';
+    const sessionsCount = Number(raw.sessions_count ?? (Array.isArray(raw.sessions) ? raw.sessions.length : 1));
+
+    // Sessions array mapping
+    let sessions = [];
+    if (Array.isArray(raw.sessions) && raw.sessions.length > 0) {
+      sessions = raw.sessions.map((s, idx) => {
+        const sIn = s.clock_in || {};
+        const sOut = s.clock_out || {};
+        return {
+          id: String(s.id || `sess-${idx}`),
+          clockIn: {
+            time: sIn.time || '',
+            datetime: sIn.datetime || '',
+            device: sIn.device || 'phone',
+            ip: sIn.ip || '',
+            address: sIn.address || '',
+            location: sIn.location || 'Remote',
+          },
+          clockOut: {
+            time: sOut.time || '',
+            datetime: sOut.datetime || '',
+            device: sOut.device || 'phone',
+            ip: sOut.ip || '',
+            address: sOut.address || '',
+            location: sOut.location || 'Remote',
+          },
+          durationText: s.duration_text || '',
+          security: s.security || {
+            is_suspicious: false,
+            details: null,
+          },
+        };
+      });
+    } else if (raw.clock_in || raw.clock_out) {
+      // Synthesize 1 session for legacy flat records
+      sessions = [
+        {
+          id: id,
+          clockIn: {
+            time: raw.clock_in?.time || raw.clock_in_time || '',
+            datetime: raw.clock_in?.datetime || raw.clock_in_time || '',
+            device: raw.clock_in?.device || 'mobile',
+            ip: raw.clock_in?.ip || '',
+            address: raw.clock_in?.address || '',
+            location: raw.clock_in?.location || (raw.location_type === 'inside_office' ? 'Office' : 'Remote'),
+          },
+          clockOut: {
+            time: raw.clock_out?.time || raw.clock_out_time || '',
+            datetime: raw.clock_out?.datetime || raw.clock_out_time || '',
+            device: raw.clock_out?.device || 'mobile',
+            ip: raw.clock_out?.ip || '',
+            address: raw.clock_out?.address || '',
+            location: raw.clock_out?.location || (raw.location_type === 'inside_office' ? 'Office' : 'Remote'),
+          },
+          durationText: raw.duration_text || totalWorkText,
+          security: raw.security || { is_suspicious: false, details: null },
+        },
+      ];
+    }
+
+    // Fallbacks for legacy single punch view
+    const clockIn = raw.clock_in || (sessions[0]?.clockIn) || {};
     const clockInTime = clockIn.datetime || raw.clock_in_time || raw.clockInTime;
-    const clockInTimeFormatted = clockIn.time || '';
-    const clockInLocation = clockIn.location || (raw.location_type === 'inside_office' ? 'Office' : 'Remote');
+    const clockInTimeFormatted = firstClockIn || clockIn.time || '';
+    const clockInLocation = clockIn.location || location || (raw.location_type === 'inside_office' ? 'Office' : 'Remote');
     const clockInDevice = clockIn.device || 'mobile';
 
-    const clockOut = raw.clock_out || {};
+    const clockOut = raw.clock_out || (sessions[sessions.length - 1]?.clockOut) || {};
     const clockOutTime = clockOut.datetime || raw.clock_out_time || raw.clockOutTime;
-    const clockOutTimeFormatted = clockOut.time || '';
+    const clockOutTimeFormatted = lastClockOut || clockOut.time || '';
     const clockOutLocation = clockOut.location || clockInLocation;
     const clockOutDevice = clockOut.device || clockInDevice;
 
-    const durationMinutes = Number(raw.duration_minutes ?? (raw.duration_seconds ? Math.round(raw.duration_seconds / 60) : 0));
-    const durationSeconds = raw.duration_minutes != null ? durationMinutes * 60 : Number(raw.duration_seconds || 0);
-    const durationText = raw.duration_text || (durationMinutes > 0 ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m` : '');
+    const durationMinutes = totalWorkMinutes;
+    const durationSeconds = totalWorkMinutes * 60;
+    const durationText = totalWorkText;
 
-    const security = raw.security || {
+    const security = raw.security || (sessions.find((s) => s.security?.is_suspicious)?.security) || {
       is_suspicious: false,
       details: null,
     };
@@ -202,7 +271,16 @@ export async function getAttendanceHistory(token, userId, options = {}) {
       date,
       status,
       approvalStatus,
+      location,
       isActiveSession,
+      firstClockIn,
+      lastClockOut,
+      totalWorkMinutes,
+      totalWorkText,
+      sessionsMinutes,
+      sessionsText,
+      sessionsCount,
+      sessions,
       clockInTime,
       clockInTimeFormatted,
       clockInLocation,
