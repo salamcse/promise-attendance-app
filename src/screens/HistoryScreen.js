@@ -285,8 +285,6 @@ export default function HistoryScreen({ onBack }) {
               const status = (item.status || '').toLowerCase();
               const isLate = status === 'late';
               const isAbsent = status === 'absent';
-              const isApproved = item.approvalStatus === 'approved';
-              const sessionsCount = item.sessionsCount || (item.sessions ? item.sessions.length : 1);
 
               return (
                 <TouchableOpacity
@@ -295,88 +293,54 @@ export default function HistoryScreen({ onBack }) {
                   onPress={() => setSelectedRecord(item)}
                   activeOpacity={0.7}
                 >
-                  {/* Left Column: Date & Status Badges */}
+                  {/* Left Column: Date & Single Status Badge */}
                   <View style={styles.dateCol}>
                     <Text style={styles.rowDateText}>{dateStr}</Text>
 
-                    <View style={styles.badgeRow}>
-                      {isActive ? (
-                        <View style={[styles.miniBadge, styles.miniBadgeActive]}>
-                          <Text style={styles.miniBadgeTextActive}>Active</Text>
-                        </View>
-                      ) : isLate ? (
-                        <View style={[styles.miniBadge, styles.miniBadgeLate]}>
-                          <Text style={styles.miniBadgeTextLate}>Late</Text>
-                        </View>
-                      ) : isAbsent ? (
-                        <View style={[styles.miniBadge, styles.miniBadgeAbsent]}>
-                          <Text style={styles.miniBadgeTextAbsent}>Absent</Text>
-                        </View>
-                      ) : (
-                        <View style={[styles.miniBadge, styles.miniBadgePresent]}>
-                          <Text style={styles.miniBadgeTextPresent}>Present</Text>
-                        </View>
-                      )}
-
-                      <View
-                        style={[
-                          styles.miniBadge,
-                          isApproved ? styles.miniBadgeApproved : styles.miniBadgePending,
-                        ]}
-                      >
-                        <Text
-                          style={
-                            isApproved
-                              ? styles.miniBadgeTextApproved
-                              : styles.miniBadgeTextPending
-                          }
-                        >
-                          {isApproved ? 'Approved' : 'Pending'}
-                        </Text>
-                      </View>
-
-                      {sessionsCount > 1 && (
-                        <View style={[styles.miniBadge, styles.miniBadgeSession]}>
-                          <Text style={styles.miniBadgeTextSession}>{sessionsCount} punches</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* Middle Column: In/Out Times & Total Work Time */}
-                  <View style={styles.timesCol}>
-                    <View style={styles.timeFlowRow}>
-                      <Text style={styles.timeLabel}>In </Text>
-                      <Text style={styles.timeVal}>{inTime}</Text>
-                      <Text style={styles.timeDivider}> • </Text>
-                      <Text style={styles.timeLabel}>Out </Text>
+                    <View
+                      style={[
+                        styles.miniBadge,
+                        isActive
+                          ? styles.miniBadgeActive
+                          : isLate
+                          ? styles.miniBadgeLate
+                          : isAbsent
+                          ? styles.miniBadgeAbsent
+                          : styles.miniBadgePresent,
+                      ]}
+                    >
                       <Text
                         style={[
-                          styles.timeVal,
-                          isActive && styles.timeValActive,
+                          styles.miniBadgeText,
+                          isActive
+                            ? styles.miniBadgeTextActive
+                            : isLate
+                            ? styles.miniBadgeTextLate
+                            : isAbsent
+                            ? styles.miniBadgeTextAbsent
+                            : styles.miniBadgeTextPresent,
                         ]}
                       >
-                        {outTime}
-                      </Text>
-                    </View>
-
-                    <View style={styles.workDurationRow}>
-                      <Clock size={11} color={colors.primary} style={{ marginRight: 4 }} />
-                      <Text style={styles.workDurationText}>
-                        Work: {isActive ? 'In Progress' : durationText}
+                        {isActive ? 'Active' : isLate ? 'Late' : isAbsent ? 'Absent' : 'Present'}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Right Column: Clean View Button */}
-                  <TouchableOpacity
-                    style={styles.viewBtn}
-                    onPress={() => setSelectedRecord(item)}
-                    activeOpacity={0.7}
-                  >
+                  {/* Middle Column: Work Duration & Time Range */}
+                  <View style={styles.timesCol}>
+                    <Text style={styles.workDurationPrimary}>
+                      {isActive ? 'In Progress' : durationText}
+                    </Text>
+                    <Text style={styles.timeRangeSub}>
+                      {inTime} – {outTime}
+                    </Text>
+                  </View>
+
+                  {/* Right Column: Clean Details Button */}
+                  <View style={styles.viewBtn}>
                     <Eye size={13} color={colors.primary} style={{ marginRight: 4 }} />
-                    <Text style={styles.viewBtnText}>View</Text>
-                  </TouchableOpacity>
+                    <Text style={styles.viewBtnText}>Details</Text>
+                  </View>
                 </TouchableOpacity>
               );
             })
@@ -525,15 +489,11 @@ function getStyles(colors, isDark) {
       fontSize: 14,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 4,
-    },
-    badgeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
+      marginBottom: 3,
     },
     miniBadge: {
-      paddingHorizontal: 6,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 7,
       paddingVertical: 2,
       borderRadius: RADIUS.xs,
     },
@@ -546,96 +506,47 @@ function getStyles(colors, isDark) {
     miniBadgeActive: {
       backgroundColor: colors.successBg,
     },
-    miniBadgeApproved: {
-      backgroundColor: colors.inputBackground,
-    },
-    miniBadgePending: {
-      backgroundColor: 'rgba(245, 158, 11, 0.10)',
-    },
     miniBadgeAbsent: {
       backgroundColor: 'rgba(239, 68, 68, 0.12)',
     },
-    miniBadgeSession: {
-      backgroundColor: colors.primaryMuted,
-    },
-    miniBadgeTextLate: {
+    miniBadgeText: {
       fontSize: 10,
       fontWeight: '700',
+    },
+    miniBadgeTextLate: {
       color: '#F59E0B',
     },
     miniBadgeTextPresent: {
-      fontSize: 10,
-      fontWeight: '700',
       color: colors.success,
     },
     miniBadgeTextActive: {
-      fontSize: 10,
-      fontWeight: '700',
       color: colors.success,
     },
     miniBadgeTextAbsent: {
-      fontSize: 10,
-      fontWeight: '700',
       color: '#EF4444',
     },
-    miniBadgeTextApproved: {
-      fontSize: 10,
-      fontWeight: '600',
-      color: colors.success,
-    },
-    miniBadgeTextPending: {
-      fontSize: 10,
-      fontWeight: '600',
-      color: '#F59E0B',
-    },
-    miniBadgeTextSession: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: colors.primary,
-    },
     timesCol: {
-      flex: 1.4,
+      flex: 1.3,
       paddingHorizontal: SPACING.xs,
     },
-    timeFlowRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 3,
-    },
-    timeLabel: {
-      fontSize: 11,
-      color: colors.textMuted,
-      fontWeight: '500',
-    },
-    timeVal: {
-      fontSize: 12,
+    workDurationPrimary: {
+      fontSize: 13,
       fontWeight: '700',
-      color: colors.text,
-      fontVariant: ['tabular-nums'],
-    },
-    timeValActive: {
-      color: colors.success,
-      fontStyle: 'italic',
-    },
-    timeDivider: {
-      fontSize: 10,
-      color: colors.textMuted,
-    },
-    workDurationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    workDurationText: {
-      fontSize: 11,
-      fontWeight: '600',
       color: colors.primary,
+      marginBottom: 2,
+    },
+    timeRangeSub: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.textSecondary,
+      fontVariant: ['tabular-nums'],
     },
     viewBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.primaryMuted,
-      paddingHorizontal: SPACING.sm + 2,
-      paddingVertical: 5,
+      paddingHorizontal: SPACING.sm + 4,
+      paddingVertical: 6,
       borderRadius: RADIUS.sm,
       marginLeft: SPACING.xs,
     },

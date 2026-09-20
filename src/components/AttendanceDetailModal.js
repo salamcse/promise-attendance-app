@@ -32,6 +32,7 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
   const dateStr = formatDate(record.date || record.clockInTime);
   const status = (record.status || '').toLowerCase();
   const isLate = status === 'late';
+  const isAbsent = status === 'absent';
   const isActive = record.isActiveSession || (!record.lastClockOut && !record.clockOutTime && !record.clockOutTimeFormatted);
   const isApproved = record.approvalStatus === 'approved';
 
@@ -41,6 +42,8 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
 
   const totalDuration = record.totalWorkText || record.durationText || `${record.totalWorkMinutes || record.durationMinutes || 0}m`;
   const locationName = record.location;
+  const firstIn = record.firstClockIn || record.clockInTimeFormatted || record.clockIn?.time || '--';
+  const lastOut = isActive ? 'In Progress' : record.lastClockOut || record.clockOutTimeFormatted || record.clockOut?.time || '--';
 
   const anySuspicious = (sessions && sessions.some((s) => s.security?.is_suspicious)) || Boolean(record.security?.is_suspicious);
 
@@ -75,7 +78,7 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Status Badges Row */}
+            {/* Status & Approval Badges Row */}
             <View style={styles.statusRow}>
               {isActive ? (
                 <View style={[styles.badge, styles.badgeActive]}>
@@ -84,6 +87,10 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
               ) : isLate ? (
                 <View style={[styles.badge, styles.badgeLate]}>
                   <Text style={[styles.badgeText, styles.textLate]}>Late Arrival</Text>
+                </View>
+              ) : isAbsent ? (
+                <View style={[styles.badge, styles.badgeAbsent]}>
+                  <Text style={[styles.badgeText, styles.textAbsent]}>Absent</Text>
                 </View>
               ) : (
                 <View style={[styles.badge, styles.badgePresent]}>
@@ -113,32 +120,51 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
                   {isApproved ? 'Approved' : 'Pending Approval'}
                 </Text>
               </View>
-            </View>
 
-            {/* Total Duration Banner */}
-            <View style={styles.durationBanner}>
-              <View style={styles.durationLeft}>
-                <Clock size={16} color={colors.primary} style={{ marginRight: 8 }} />
-                <Text style={styles.durationBannerLabel}>Total Work:</Text>
-                <Text style={styles.durationBannerValue}>
-                  {isActive ? 'Session Active' : totalDuration}
-                </Text>
-              </View>
               {sessions && sessions.length > 1 && (
-                <View style={styles.sessionsCountBadge}>
+                <View style={[styles.badge, styles.badgeSessions]}>
                   <Layers size={12} color={colors.primary} style={{ marginRight: 4 }} />
-                  <Text style={styles.sessionsCountText}>
+                  <Text style={styles.textSessions}>
                     {sessions.length} sessions
                   </Text>
                 </View>
               )}
             </View>
 
-            {/* Location Banner (if available) */}
-            {Boolean(locationName) && (
-              <View style={styles.locationBanner}>
-                <MapPin size={14} color={colors.textSecondary} style={{ marginRight: 6 }} />
-                <Text style={styles.locationText}>{locationName}</Text>
+            {/* Day Summary Overview Card */}
+            <View style={styles.daySummaryCard}>
+              <View style={styles.daySummaryRow}>
+                <View style={styles.daySummaryItem}>
+                  <Text style={styles.daySummaryLabel}>TOTAL WORK TIME</Text>
+                  <Text style={styles.daySummaryValuePrimary}>
+                    {isActive ? 'In Progress' : totalDuration}
+                  </Text>
+                </View>
+
+                <View style={styles.daySummaryDivider} />
+
+                <View style={styles.daySummaryItem}>
+                  <Text style={styles.daySummaryLabel}>DAY PUNCH SPAN</Text>
+                  <Text style={styles.daySummaryValue}>
+                    {firstIn} → {lastOut}
+                  </Text>
+                </View>
+              </View>
+
+              {Boolean(locationName) && (
+                <View style={styles.summaryLocationRow}>
+                  <MapPin size={13} color={colors.textSecondary} style={{ marginRight: 5 }} />
+                  <Text style={styles.summaryLocationText}>{locationName}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Sessions Header */}
+            {sessions && (
+              <View style={styles.sessionsSectionHeader}>
+                <Text style={styles.sessionsSectionTitle}>
+                  PUNCH SESSIONS ({sessions.length})
+                </Text>
               </View>
             )}
 
@@ -300,7 +326,7 @@ function getStyles(colors, isDark) {
     },
     dialogCard: {
       width: '100%',
-      maxWidth: 420,
+      maxWidth: 440,
       maxHeight: '85%',
       backgroundColor: colors.surface,
       borderRadius: RADIUS.lg,
@@ -358,6 +384,7 @@ function getStyles(colors, isDark) {
       alignItems: 'center',
       gap: SPACING.sm,
       marginBottom: SPACING.md,
+      flexWrap: 'wrap',
     },
     badge: {
       flexDirection: 'row',
@@ -372,6 +399,9 @@ function getStyles(colors, isDark) {
     badgeLate: {
       backgroundColor: 'rgba(245, 158, 11, 0.14)',
     },
+    badgeAbsent: {
+      backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    },
     badgePresent: {
       backgroundColor: colors.successBg,
     },
@@ -380,6 +410,9 @@ function getStyles(colors, isDark) {
     },
     badgePending: {
       backgroundColor: 'rgba(245, 158, 11, 0.10)',
+    },
+    badgeSessions: {
+      backgroundColor: colors.primaryMuted,
     },
     badgeText: {
       fontSize: 12,
@@ -391,6 +424,9 @@ function getStyles(colors, isDark) {
     textLate: {
       color: '#F59E0B',
     },
+    textAbsent: {
+      color: '#EF4444',
+    },
     textPresent: {
       color: colors.success,
     },
@@ -400,59 +436,72 @@ function getStyles(colors, isDark) {
     textPending: {
       color: '#F59E0B',
     },
-    durationBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.primaryMuted,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm + 2,
-      borderRadius: RADIUS.md,
-      marginBottom: SPACING.md,
-    },
-    durationLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    durationBannerLabel: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      fontWeight: '500',
-    },
-    durationBannerValue: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.primary,
-      marginLeft: 6,
-    },
-    sessionsCountBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.surface,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: RADIUS.xs,
-    },
-    sessionsCountText: {
-      fontSize: 11,
+    textSessions: {
+      fontSize: 12,
       fontWeight: '700',
       color: colors.primary,
     },
-    locationBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    daySummaryCard: {
       backgroundColor: colors.inputBackground,
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      borderRadius: RADIUS.sm,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
       marginBottom: SPACING.md,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    locationText: {
+    daySummaryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    daySummaryItem: {
+      flex: 1,
+    },
+    daySummaryDivider: {
+      width: 1,
+      height: 32,
+      backgroundColor: colors.border,
+      marginHorizontal: SPACING.md,
+    },
+    daySummaryLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.textMuted,
+      letterSpacing: 0.5,
+      marginBottom: 3,
+    },
+    daySummaryValuePrimary: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    daySummaryValue: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    summaryLocationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      paddingTop: SPACING.xs + 2,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    summaryLocationText: {
       fontSize: 12,
       fontWeight: '600',
       color: colors.textSecondary,
+    },
+    sessionsSectionHeader: {
+      marginTop: SPACING.xs,
+      marginBottom: SPACING.sm,
+    },
+    sessionsSectionTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.8,
+      color: colors.textMuted,
     },
     sessionCard: {
       backgroundColor: colors.inputBackground,
