@@ -129,7 +129,7 @@ function getStyles(colors, isDark) {
     },
     logo: {
       width: 140,
-      height: 50,
+      height: 45,
     },
     actionsGroup: {
       flexDirection: 'row',

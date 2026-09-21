@@ -111,9 +111,6 @@ function getStyles(colors, isDark) {
       justifyContent: 'center',
       marginBottom: 2,
     },
-    activeIconContainer: {
-      backgroundColor: colors.primaryMuted,
-    },
     tabLabel: {
       fontSize: 11,
       fontWeight: '600',

@@ -57,6 +57,7 @@ function AuthenticatedApp() {
 
 function MainNavigator() {
   const { isAuthenticated, isRestoringSession } = useAuth();
+  const { colors, isDark } = useTheme();
   const [isSplashDone, setIsSplashDone] = useState(false);
 
   if (isRestoringSession || !isSplashDone) {
@@ -72,8 +73,8 @@ function MainNavigator() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#FFFFFF' }]}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
         <LoginScreen />
       </SafeAreaView>
     );
