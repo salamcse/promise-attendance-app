@@ -1,5 +1,5 @@
 function getSanitizedBaseUrl() {
-  let url = (process.env.EXPO_PUBLIC_API_URL || 'https://dev.promiseassets.com/api/v1').trim();
+  let url = (process.env.EXPO_PUBLIC_API_URL || 'https://spider.promiseassets.com/api/v1').trim();
   url = url.replace(/\/+$/, '');
   if (url.endsWith('/hrm')) {
     url = url.slice(0, -4);

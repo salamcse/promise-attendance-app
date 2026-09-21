@@ -14,7 +14,7 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://dev.promiseassets.com/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://spider.promiseassets.com/api/v1",
         "EXPO_PUBLIC_OFFICE_LATITUDE": "23.777702",
         "EXPO_PUBLIC_OFFICE_LONGITUDE": "90.361081",
         "EXPO_PUBLIC_OFFICE_RADIUS_METERS": "150"
@@ -23,7 +23,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://dev.promiseassets.com/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://spider.promiseassets.com/api/v1",
         "EXPO_PUBLIC_OFFICE_LATITUDE": "23.777702",
         "EXPO_PUBLIC_OFFICE_LONGITUDE": "90.361081",
         "EXPO_PUBLIC_OFFICE_RADIUS_METERS": "150"
