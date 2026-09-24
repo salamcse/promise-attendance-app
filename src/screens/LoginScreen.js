@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   Keyboard,
   Image,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +27,30 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardOpen(true);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardOpen(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const trimmedEmail = email.trim();
   const isFormValid = trimmedEmail.length > 0 && password.length > 0;
@@ -43,12 +68,22 @@ export default function LoginScreen() {
     }
   };
 
+  const handleInputFocus = (field) => {
+    if (field === 'email') setEmailFocused(true);
+    if (field === 'password') setPasswordFocused(true);
+
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 150);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
     >
-      {/* Top-Right Theme Toggle (Outside form for clean centered balance) */}
+      {/* Top-Right Theme Toggle */}
       <View style={styles.topNav}>
         <TouchableOpacity
           style={styles.themeToggleBtn}
@@ -65,116 +100,127 @@ export default function LoginScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        ref={scrollViewRef}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isKeyboardOpen && styles.scrollContentKeyboard,
+        ]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        <View style={styles.card}>
-          {/* Brand Header */}
-          <View style={styles.brandHeader}>
-            <Image
-              source={
-                isDark
-                  ? require('../../assets/logo.png')
-                  : require('../../assets/logo-light-theme.png')
-              }
-              style={styles.brandLogo}
-              resizeMode="contain"
-            />
-            <Text style={styles.brandSubtitle}>Employee Attendance Portal</Text>
-          </View>
-
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Email or Username Field */}
-            <Text style={styles.inputLabel}>EMAIL OR USERNAME</Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                emailFocused && styles.inputWrapperFocused,
-              ]}
-            >
-              <User
-                size={18}
-                color={emailFocused ? colors.primary : colors.textMuted}
-                style={styles.inputIcon}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.card}>
+            {/* Brand Header */}
+            <View style={[styles.brandHeader, isKeyboardOpen && styles.brandHeaderKeyboard]}>
+              <Image
+                source={
+                  isDark
+                    ? require('../../assets/logo.png')
+                    : require('../../assets/logo-light-theme.png')
+                }
+                style={[styles.brandLogo, isKeyboardOpen && styles.brandLogoKeyboard]}
+                resizeMode="contain"
               />
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={(val) => {
-                  setEmail(val);
-                  if (authError) setAuthError(null);
-                }}
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
-                placeholder="Enter email or username"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="default"
-                returnKeyType="next"
-              />
+              {!isKeyboardOpen && (
+                <Text style={styles.brandSubtitle}>Employee Attendance Portal</Text>
+              )}
             </View>
 
-            {/* Password Field */}
-            <Text style={styles.inputLabel}>PASSWORD</Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                passwordFocused && styles.inputWrapperFocused,
-              ]}
-            >
-              <Lock
-                size={18}
-                color={passwordFocused ? colors.primary : colors.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={(val) => {
-                  setPassword(val);
-                  if (authError) setAuthError(null);
-                }}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
-                placeholder="••••••••"
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword((prev) => !prev)}
-                style={styles.eyeBtn}
-                activeOpacity={0.7}
+            {/* Form */}
+            <View style={styles.form}>
+              {/* Email or Username Field */}
+              <Text style={styles.inputLabel}>EMAIL OR USERNAME</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  emailFocused && styles.inputWrapperFocused,
+                ]}
               >
-                {showPassword ? (
-                  <EyeOff size={18} color={colors.textMuted} />
-                ) : (
-                  <Eye size={18} color={colors.textMuted} />
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Error Message Display */}
-            {Boolean(authError) && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{authError}</Text>
+                <User
+                  size={18}
+                  color={emailFocused ? colors.primary : colors.textMuted}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={(val) => {
+                    setEmail(val);
+                    if (authError) setAuthError(null);
+                  }}
+                  onFocus={() => handleInputFocus('email')}
+                  onBlur={() => setEmailFocused(false)}
+                  placeholder="Enter email or username"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="default"
+                  returnKeyType="next"
+                />
               </View>
-            )}
 
-            {/* Submit CTA */}
-            <PrimaryButton
-              title="LOGIN"
-              onPress={handleSubmit}
-              loading={isLoggingIn}
-              disabled={!isFormValid || isLoggingIn}
-              style={styles.loginBtn}
-            />
+              {/* Password Field */}
+              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  passwordFocused && styles.inputWrapperFocused,
+                ]}
+              >
+                <Lock
+                  size={18}
+                  color={passwordFocused ? colors.primary : colors.textMuted}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (authError) setAuthError(null);
+                  }}
+                  onFocus={() => handleInputFocus('password')}
+                  onBlur={() => setPasswordFocused(false)}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textMuted}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  style={styles.eyeBtn}
+                  activeOpacity={0.7}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color={colors.textMuted} />
+                  ) : (
+                    <Eye size={18} color={colors.textMuted} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Error Message Display */}
+              {Boolean(authError) && (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{authError}</Text>
+                </View>
+              )}
+
+              {/* Submit CTA */}
+              <PrimaryButton
+                title="LOGIN"
+                onPress={handleSubmit}
+                loading={isLoggingIn}
+                disabled={!isFormValid || isLoggingIn}
+                style={styles.loginBtn}
+              />
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -192,6 +238,11 @@ function getStyles(colors, isDark) {
       alignItems: 'center',
       padding: SPACING.xl,
       backgroundColor: colors.background,
+    },
+    scrollContentKeyboard: {
+      justifyContent: 'flex-start',
+      paddingTop: Platform.OS === 'ios' ? SPACING.xxl : SPACING.lg,
+      paddingBottom: Platform.OS === 'ios' ? 100 : 150,
     },
     card: {
       width: '100%',
@@ -220,10 +271,19 @@ function getStyles(colors, isDark) {
       alignItems: 'center',
       marginBottom: SPACING.xl,
     },
+    brandHeaderKeyboard: {
+      marginBottom: SPACING.sm,
+      marginTop: Platform.OS === 'ios' ? SPACING.xs : 0,
+    },
     brandLogo: {
       width: 175,
       height: 60,
       marginBottom: SPACING.xs,
+    },
+    brandLogoKeyboard: {
+      width: 125,
+      height: 38,
+      marginBottom: 0,
     },
     brandSubtitle: {
       ...TYPOGRAPHY.caption,

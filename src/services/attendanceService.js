@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient';
+import { getDeviceDetails } from './deviceService';
 
 /**
  * Calculate 30-day attendance statistics
@@ -74,34 +75,52 @@ export async function getAttendanceStatus(token, userId) {
 
 export async function clockIn(location, token, userId, note) {
   const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
+  const { device_type, device_info } = getDeviceDetails();
+
+  const noteStr = typeof note === 'string' ? note.trim() : '';
+
+  const body = {
+    latitude: String(location?.latitude ?? ''),
+    longitude: String(location?.longitude ?? ''),
+    device_type,
+    device_info,
+    address: location?.address || (locationType === 'inside_office' ? 'Office' : 'Dhaka, Bangladesh'),
+    location_type: locationType,
+    note: noteStr,
+    is_mock: Boolean(location?.isMock),
+    ...(userId ? { user_id: userId } : {}),
+  };
+
   return apiRequest('/hrm/clock-in', {
     method: 'POST',
     token,
-    body: {
-      user_id: userId,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      location_type: locationType,
-      timestamp: new Date().toISOString(),
-      ...(note ? { note: note.trim() } : {}),
-    },
+    body,
   });
 }
 
 export async function clockOut(location, token, userId, sessionId, note) {
   const locationType = location?.isOffice ? 'inside_office' : 'outside_office';
+  const { device_type, device_info } = getDeviceDetails();
+
+  const noteStr = typeof note === 'string' ? note.trim() : '';
+
+  const body = {
+    latitude: String(location?.latitude ?? ''),
+    longitude: String(location?.longitude ?? ''),
+    device_type,
+    device_info,
+    address: location?.address || (locationType === 'inside_office' ? 'Office' : 'Dhaka, Bangladesh'),
+    location_type: locationType,
+    note: noteStr,
+    is_mock: Boolean(location?.isMock),
+    ...(sessionId ? { session_id: sessionId } : {}),
+    ...(userId ? { user_id: userId } : {}),
+  };
+
   return apiRequest('/hrm/clock-out', {
     method: 'POST',
     token,
-    body: {
-      user_id: userId,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      location_type: locationType,
-      ...(sessionId ? { session_id: sessionId } : {}),
-      ...(note ? { note: note.trim() } : {}),
-      timestamp: new Date().toISOString(),
-    },
+    body,
   });
 }
 
@@ -266,6 +285,8 @@ export async function getAttendanceHistory(token, userId, options = {}) {
       details: null,
     };
 
+    const note = raw.note || raw.clock_in?.note || clockIn.note || '';
+
     return {
       id,
       date,
@@ -293,6 +314,7 @@ export async function getAttendanceHistory(token, userId, options = {}) {
       durationSeconds,
       durationText,
       security,
+      note,
       clockIn,
       clockOut,
     };

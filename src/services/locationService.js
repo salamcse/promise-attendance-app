@@ -131,12 +131,44 @@ export async function getCurrentLocation() {
     }
 
     const { latitude, longitude, accuracy } = location.coords;
+    const isOffice = isOfficeLocation(latitude, longitude);
+    const isMock = Boolean(location.mocked);
+
+    let address = '';
+    try {
+      // 2.5s timeout race so reverse geocoding never blocks clocking in
+      const geocodePromise = Location.reverseGeocodeAsync({ latitude, longitude });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Geocode timeout')), 2500)
+      );
+
+      const geocodeResults = await Promise.race([geocodePromise, timeoutPromise]);
+      if (Array.isArray(geocodeResults) && geocodeResults.length > 0) {
+        const item = geocodeResults[0];
+        const parts = [
+          item.name && item.name !== item.street ? item.name : null,
+          item.street,
+          item.subregion || item.district,
+          item.city,
+          item.country,
+        ].filter(Boolean);
+        address = parts.join(', ') || item.formattedAddress || '';
+      }
+    } catch {
+      // Fallback if offline or geocode fails
+    }
+
+    if (!address) {
+      address = isOffice ? (OFFICE_LOCATION.name || 'Office') : 'Dhaka, Bangladesh';
+    }
 
     return {
       latitude: Number(latitude.toFixed(6)),
       longitude: Number(longitude.toFixed(6)),
       accuracy: accuracy ?? null,
-      isOffice: isOfficeLocation(latitude, longitude),
+      isOffice,
+      isMock,
+      address,
     };
   } catch (error) {
     if (error instanceof LocationError) {

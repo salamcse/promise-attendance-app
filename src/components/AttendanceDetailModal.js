@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Layers,
+  FileText,
 } from 'lucide-react-native';
 import { formatDate } from '../utils/dateUtils';
 import { SPACING, RADIUS } from '../constants/theme';
@@ -155,6 +156,13 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
                 <View style={styles.summaryLocationRow}>
                   <MapPin size={13} color={colors.textSecondary} style={{ marginRight: 5 }} />
                   <Text style={styles.summaryLocationText}>{locationName}</Text>
+                </View>
+              )}
+
+              {Boolean(record?.note) && (
+                <View style={styles.summaryNoteRow}>
+                  <FileText size={13} color={colors.primary} style={{ marginRight: 5 }} />
+                  <Text style={styles.summaryNoteText}>Note: {record.note}</Text>
                 </View>
               )}
             </View>
@@ -492,6 +500,20 @@ function getStyles(colors, isDark) {
       fontSize: 12,
       fontWeight: '600',
       color: colors.textSecondary,
+    },
+    summaryNoteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: SPACING.xs,
+      paddingTop: SPACING.xs,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    summaryNoteText: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.text,
+      flex: 1,
     },
     sessionsSectionHeader: {
       marginTop: SPACING.xs,
