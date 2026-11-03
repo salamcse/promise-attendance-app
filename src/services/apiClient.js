@@ -1,3 +1,6 @@
+const DEFAULT_USER_AGENT =
+  'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 PromiseAttendanceApp';
+
 function getSanitizedBaseUrl() {
   let url = (process.env.EXPO_PUBLIC_API_URL || 'https://spider.promiseassets.com/api/v1').trim();
   url = url.replace(/\/+$/, '');
@@ -9,7 +12,10 @@ function getSanitizedBaseUrl() {
 
 const BASE_URL = getSanitizedBaseUrl();
 
-export async function apiRequest(endpoint, { method = 'GET', body, token, timeoutMs = 15000 } = {}) {
+export async function apiRequest(
+  endpoint,
+  { method = 'GET', body, token, timeoutMs = 15000, headers = {} } = {}
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -20,9 +26,11 @@ export async function apiRequest(endpoint, { method = 'GET', body, token, timeou
     const response = await fetch(fullUrl, {
       method,
       headers: {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': DEFAULT_USER_AGENT,
         ...(token && { Authorization: `Bearer ${token}` }),
+        ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,

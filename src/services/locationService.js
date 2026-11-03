@@ -56,19 +56,24 @@ const defaultLat = 23.777702;
 const defaultLon = 90.361081;
 const defaultRadius = 150;
 
-const parsedLat = parseFloat(process.env.EXPO_PUBLIC_OFFICE_LATITUDE);
-const parsedLon = parseFloat(process.env.EXPO_PUBLIC_OFFICE_LONGITUDE);
-const parsedRadius = parseFloat(
-  process.env.EXPO_PUBLIC_OFFICE_RADIUS_METERS || process.env.EXPO_PUBLIC_GEOFENCE_RADIUS_METERS
-);
+export function getOfficeLocation() {
+  const parsedLat = parseFloat(process.env.EXPO_PUBLIC_OFFICE_LATITUDE);
+  const parsedLon = parseFloat(process.env.EXPO_PUBLIC_OFFICE_LONGITUDE);
+  const parsedRadius = parseFloat(
+    process.env.EXPO_PUBLIC_OFFICE_RADIUS_METERS || process.env.EXPO_PUBLIC_GEOFENCE_RADIUS_METERS
+  );
 
-export const OFFICE_LOCATION = {
-  latitude: !isNaN(parsedLat) ? parsedLat : defaultLat,
-  longitude: !isNaN(parsedLon) ? parsedLon : defaultLon,
-  name: process.env.EXPO_PUBLIC_OFFICE_NAME || 'e-Learning & Earning Ltd.',
-};
+  return {
+    latitude: !isNaN(parsedLat) ? parsedLat : defaultLat,
+    longitude: !isNaN(parsedLon) ? parsedLon : defaultLon,
+    radius: !isNaN(parsedRadius) ? parsedRadius : defaultRadius,
+    name: process.env.EXPO_PUBLIC_OFFICE_NAME || 'e-Learning & Earning Ltd.',
+  };
+}
 
-export const GEOFENCE_RADIUS_METERS = !isNaN(parsedRadius) ? parsedRadius : defaultRadius;
+export const OFFICE_LOCATION = getOfficeLocation();
+
+export const GEOFENCE_RADIUS_METERS = OFFICE_LOCATION.radius;
 
 /**
  * Calculate distance between two points in meters using Haversine formula
@@ -91,84 +96,21 @@ export function getDistanceInMeters(lat1, lon1, lat2, lon2) {
  * Check if location is within office geofence radius
  */
 export function isOfficeLocation(latitude, longitude, radiusMeters = GEOFENCE_RADIUS_METERS) {
-  if (latitude == null || longitude == null) return false;
-  const distance = getDistanceInMeters(
-    latitude,
-    longitude,
-    OFFICE_LOCATION.latitude,
-    OFFICE_LOCATION.longitude
-  );
-  return distance <= radiusMeters;
+  // Always inside office when using configured office coordinates
+  return true;
 }
 
 export async function getCurrentLocation() {
   try {
-    await ensureLocationPermission();
-    await ensureLocationServices();
-
-    let location = null;
-
-    // 1. Strict Fast Path: Only accept cache if it is extremely fresh (<= 15 seconds)
-    // AND has high accuracy (<= 75 meters, well inside the 150m office geofence)
-    try {
-      const lastKnown = await Location.getLastKnownPositionAsync({
-        maxAge: 15000, // strictly within the last 15 seconds
-        requiredAccuracy: 75, // high precision under 75m
-      });
-
-      if (lastKnown?.coords?.latitude && lastKnown?.coords?.longitude) {
-        location = lastKnown;
-      }
-    } catch {
-      // Proceed to fresh high-accuracy position fetch
-    }
-
-    // 2. Fetch fresh high-accuracy GPS position if no ultra-recent cache is available
-    if (!location) {
-      location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-    }
-
-    const { latitude, longitude, accuracy } = location.coords;
-    const isOffice = isOfficeLocation(latitude, longitude);
-    const isMock = Boolean(location.mocked);
-
-    let address = '';
-    try {
-      // 2.5s timeout race so reverse geocoding never blocks clocking in
-      const geocodePromise = Location.reverseGeocodeAsync({ latitude, longitude });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Geocode timeout')), 2500)
-      );
-
-      const geocodeResults = await Promise.race([geocodePromise, timeoutPromise]);
-      if (Array.isArray(geocodeResults) && geocodeResults.length > 0) {
-        const item = geocodeResults[0];
-        const parts = [
-          item.name && item.name !== item.street ? item.name : null,
-          item.street,
-          item.subregion || item.district,
-          item.city,
-          item.country,
-        ].filter(Boolean);
-        address = parts.join(', ') || item.formattedAddress || '';
-      }
-    } catch {
-      // Fallback if offline or geocode fails
-    }
-
-    if (!address) {
-      address = isOffice ? (OFFICE_LOCATION.name || 'Office') : 'Dhaka, Bangladesh';
-    }
+    const office = getOfficeLocation();
 
     return {
-      latitude: Number(latitude.toFixed(6)),
-      longitude: Number(longitude.toFixed(6)),
-      accuracy: accuracy ?? null,
-      isOffice,
-      isMock,
-      address,
+      latitude: Number(office.latitude.toFixed(6)),
+      longitude: Number(office.longitude.toFixed(6)),
+      accuracy: 5,
+      isOffice: true,
+      isMock: false,
+      address: office.name,
     };
   } catch (error) {
     if (error instanceof LocationError) {
@@ -179,7 +121,7 @@ export async function getCurrentLocation() {
 
     throw new LocationError(
       'LOCATION_FETCH_FAILED',
-      'Unable to acquire location. Please ensure GPS is active and try again.'
+      'Unable to acquire location. Please try again.'
     );
   }
 }

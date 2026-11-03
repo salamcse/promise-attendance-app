@@ -26,3 +26,17 @@ function resolveBaseUrl() {
 
 export const API_BASE_URL = resolveBaseUrl();
 export const API_TIMEOUT_MS = 12000;
+
+export const DEFAULT_OFFICE_LATITUDE = 23.777702;
+export const DEFAULT_OFFICE_LONGITUDE = 90.361081;
+
+export const OFFICE_CONFIG = {
+  LATITUDE: !isNaN(parseFloat(process.env.EXPO_PUBLIC_OFFICE_LATITUDE))
+    ? parseFloat(process.env.EXPO_PUBLIC_OFFICE_LATITUDE)
+    : DEFAULT_OFFICE_LATITUDE,
+  LONGITUDE: !isNaN(parseFloat(process.env.EXPO_PUBLIC_OFFICE_LONGITUDE))
+    ? parseFloat(process.env.EXPO_PUBLIC_OFFICE_LONGITUDE)
+    : DEFAULT_OFFICE_LONGITUDE,
+  RADIUS_METERS: parseFloat(process.env.EXPO_PUBLIC_OFFICE_RADIUS_METERS) || 150,
+  NAME: process.env.EXPO_PUBLIC_OFFICE_NAME || 'e-Learning & Earning Ltd.',
+};
