@@ -108,22 +108,21 @@ export async function getCurrentLocation() {
 
     let location = null;
 
-    // 1. Strict Fast Path: Only accept cache if it is extremely fresh (<= 15 seconds)
-    // AND has high accuracy (<= 75 meters, well inside the 150m office geofence)
+    // 1. Strict Fast Path: Accept recent high-accuracy cache (< 60s, <= 100m)
     try {
       const lastKnown = await Location.getLastKnownPositionAsync({
-        maxAge: 15000, // strictly within the last 15 seconds
-        requiredAccuracy: 75, // high precision under 75m
+        maxAge: 60000, // accept recent position within 1 minute
+        requiredAccuracy: 100, // high precision within 100m
       });
 
       if (lastKnown?.coords?.latitude && lastKnown?.coords?.longitude) {
         location = lastKnown;
       }
     } catch {
-      // Proceed to fresh high-accuracy position fetch
+      // Proceed to fresh position fetch
     }
 
-    // 2. Fetch fresh high-accuracy GPS position if no ultra-recent cache is available
+    // 2. Fetch fresh GPS position if no recent cache is available
     if (!location) {
       location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
@@ -135,27 +134,33 @@ export async function getCurrentLocation() {
     const isMock = Boolean(location.mocked);
 
     let address = '';
-    try {
-      // 2.5s timeout race so reverse geocoding never blocks clocking in
-      const geocodePromise = Location.reverseGeocodeAsync({ latitude, longitude });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Geocode timeout')), 2500)
-      );
 
-      const geocodeResults = await Promise.race([geocodePromise, timeoutPromise]);
-      if (Array.isArray(geocodeResults) && geocodeResults.length > 0) {
-        const item = geocodeResults[0];
-        const parts = [
-          item.name && item.name !== item.street ? item.name : null,
-          item.street,
-          item.subregion || item.district,
-          item.city,
-          item.country,
-        ].filter(Boolean);
-        address = parts.join(', ') || item.formattedAddress || '';
+    // Fast Path for Office: Skip slow reverse geocoding if user is already inside office
+    if (isOffice) {
+      address = OFFICE_LOCATION.name || 'Office';
+    } else {
+      try {
+        // 1.5s timeout race so reverse geocoding never blocks clocking in
+        const geocodePromise = Location.reverseGeocodeAsync({ latitude, longitude });
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Geocode timeout')), 1500)
+        );
+
+        const geocodeResults = await Promise.race([geocodePromise, timeoutPromise]);
+        if (Array.isArray(geocodeResults) && geocodeResults.length > 0) {
+          const item = geocodeResults[0];
+          const parts = [
+            item.name && item.name !== item.street ? item.name : null,
+            item.street,
+            item.subregion || item.district,
+            item.city,
+            item.country,
+          ].filter(Boolean);
+          address = parts.join(', ') || item.formattedAddress || '';
+        }
+      } catch {
+        // Fallback if offline or geocode fails
       }
-    } catch {
-      // Fallback if offline or geocode fails
     }
 
     if (!address) {
