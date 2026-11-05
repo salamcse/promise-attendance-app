@@ -214,7 +214,7 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
                         <View style={styles.detailRow}>
                           <Text style={styles.detailLabel}>Location</Text>
                           <View style={styles.inlineVal}>
-                            <MapPin size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                            <MapPin size={12} color={colors.textMuted} style={styles.valIcon} />
                             <Text style={styles.detailVal}>
                               {sIn.address || sIn.location || 'Remote'}
                             </Text>
@@ -226,9 +226,9 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
                         <Text style={styles.detailLabel}>Device & IP</Text>
                         <View style={styles.inlineVal}>
                           {sInDevice === 'pc' ? (
-                            <Monitor size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                            <Monitor size={12} color={colors.textMuted} style={styles.valIcon} />
                           ) : (
-                            <Smartphone size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                            <Smartphone size={12} color={colors.textMuted} style={styles.valIcon} />
                           )}
                           <Text style={styles.detailVal}>
                             {sInDevice === 'pc' ? 'PC' : 'Mobile'}
@@ -257,7 +257,7 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
                             <View style={styles.detailRow}>
                               <Text style={styles.detailLabel}>Location</Text>
                               <View style={styles.inlineVal}>
-                                <MapPin size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                <MapPin size={12} color={colors.textMuted} style={styles.valIcon} />
                                 <Text style={styles.detailVal}>
                                   {sOut.address || sOut.location || 'Remote'}
                                 </Text>
@@ -269,9 +269,9 @@ export default function AttendanceDetailModal({ visible, onClose, record }) {
                             <Text style={styles.detailLabel}>Device & IP</Text>
                             <View style={styles.inlineVal}>
                               {sOutDevice === 'pc' ? (
-                                <Monitor size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                <Monitor size={12} color={colors.textMuted} style={styles.valIcon} />
                               ) : (
-                                <Smartphone size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                <Smartphone size={12} color={colors.textMuted} style={styles.valIcon} />
                               )}
                               <Text style={styles.detailVal}>
                                 {sOutDevice === 'pc' ? 'PC' : 'Mobile'}
@@ -490,7 +490,7 @@ function getStyles(colors, isDark) {
     },
     summaryLocationRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       marginTop: SPACING.sm,
       paddingTop: SPACING.xs + 2,
       borderTopWidth: 1,
@@ -500,10 +500,13 @@ function getStyles(colors, isDark) {
       fontSize: 12,
       fontWeight: '600',
       color: colors.textSecondary,
+      flex: 1,
+      flexShrink: 1,
+      flexWrap: 'wrap',
     },
     summaryNoteRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       marginTop: SPACING.xs,
       paddingTop: SPACING.xs,
       borderTopWidth: 1,
@@ -514,6 +517,8 @@ function getStyles(colors, isDark) {
       fontWeight: '500',
       color: colors.text,
       flex: 1,
+      flexShrink: 1,
+      flexWrap: 'wrap',
     },
     sessionsSectionHeader: {
       marginTop: SPACING.xs,
@@ -581,7 +586,7 @@ function getStyles(colors, isDark) {
     },
     detailRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       paddingVertical: 3,
     },
@@ -589,21 +594,36 @@ function getStyles(colors, isDark) {
       fontSize: 12,
       color: colors.textMuted,
       fontWeight: '500',
+      width: 75,
+      paddingTop: 1,
     },
     detailValBold: {
       fontSize: 13,
       fontWeight: '700',
       color: colors.text,
       fontVariant: ['tabular-nums'],
+      textAlign: 'right',
+      flex: 1,
     },
     detailVal: {
       fontSize: 12,
       fontWeight: '600',
       color: colors.text,
+      flex: 1,
+      flexShrink: 1,
+      flexWrap: 'wrap',
+      textAlign: 'right',
     },
     inlineVal: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
+      justifyContent: 'flex-end',
+      flex: 1,
+      marginLeft: SPACING.sm,
+    },
+    valIcon: {
+      marginRight: 4,
+      marginTop: 2,
     },
     securityWarning: {
       flexDirection: 'row',

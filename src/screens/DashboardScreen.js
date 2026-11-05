@@ -8,12 +8,12 @@ import AppHeader from '../components/AppHeader';
 import StatusCard from '../components/StatusCard';
 import SummaryStats from '../components/SummaryStats';
 import PrimaryButton from '../components/PrimaryButton';
-import { Calendar, ShieldCheck } from 'lucide-react-native';
-import { SPACING } from '../constants/theme';
+import { Calendar, ShieldCheck, ShieldAlert } from 'lucide-react-native';
+import { SPACING, RADIUS } from '../constants/theme';
 
 export default function DashboardScreen({ onNavigateHistory }) {
   const { user, logout, isLoggingOut } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const {
     activeSession,
     isClockedIn,
@@ -22,6 +22,8 @@ export default function DashboardScreen({ onNavigateHistory }) {
     isRefreshing,
     isSubmitting,
     actionError,
+    isVpnDetected,
+    vpnInfo,
     refreshAttendance,
     handleClockIn,
     handleClockOut,
@@ -29,7 +31,7 @@ export default function DashboardScreen({ onNavigateHistory }) {
 
   // Pure decoupled timer calculation with today's accumulated duration
   const { formattedTimer } = useRunningTimer(activeSession?.clockInTime, todayWorkedSeconds);
-  const styles = useMemo(() => getStyles(colors), [colors]);
+  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   return (
     <View style={styles.container}>
@@ -52,6 +54,22 @@ export default function DashboardScreen({ onNavigateHistory }) {
           />
         }
       >
+        {/* VPN Active Warning Banner */}
+        {Boolean(isVpnDetected) && (
+          <View style={styles.vpnBanner}>
+            <ShieldAlert size={20} color="#F59E0B" style={styles.vpnIcon} />
+            <View style={styles.vpnContent}>
+              <Text style={styles.vpnTitle}>VPN Detected</Text>
+              <Text style={styles.vpnText}>
+                VPN চালু রয়েছে। সঠিক হাজিরা নিশ্চিত করতে দয়া করে VPN বন্ধ করুন।
+              </Text>
+              {Boolean(vpnInfo?.reason) && (
+                <Text style={styles.vpnReason}>({vpnInfo.reason})</Text>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Status Check-in / Check-out Hero Section */}
         <StatusCard
           isClockedIn={isClockedIn}
@@ -85,7 +103,7 @@ export default function DashboardScreen({ onNavigateHistory }) {
   );
 }
 
-function getStyles(colors) {
+function getStyles(colors, isDark) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -96,6 +114,41 @@ function getStyles(colors) {
     },
     content: {
       paddingBottom: SPACING.xxl * 2.5,
+    },
+    vpnBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FDE68A',
+      borderRadius: RADIUS.md || 10,
+      padding: SPACING.md,
+      marginHorizontal: SPACING.xl,
+      marginBottom: SPACING.md,
+    },
+    vpnIcon: {
+      marginRight: SPACING.sm,
+      marginTop: 1,
+    },
+    vpnContent: {
+      flex: 1,
+    },
+    vpnTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#D97706',
+      marginBottom: 2,
+    },
+    vpnText: {
+      fontSize: 12,
+      color: isDark ? '#FCD34D' : '#92400E',
+      lineHeight: 17,
+      fontWeight: '500',
+    },
+    vpnReason: {
+      fontSize: 11,
+      color: isDark ? '#A7B0C0' : '#78350F',
+      marginTop: 2,
     },
     historyBtnWrapper: {
       marginHorizontal: SPACING.xl,

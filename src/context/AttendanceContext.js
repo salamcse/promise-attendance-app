@@ -4,6 +4,7 @@ import * as attendanceService from '../services/attendanceService';
 import { calculateAttendanceStats } from '../services/attendanceService';
 import * as locationService from '../services/locationService';
 import { getErrorMessage } from '../services/apiClient';
+import { checkVpnStatus } from '../services/vpnService';
 
 const AttendanceContext = createContext(null);
 
@@ -65,6 +66,18 @@ export function AttendanceProvider({ children }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [screenError, setScreenError] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [vpnInfo, setVpnInfo] = useState({ isVpn: false });
+
+  // Refresh VPN status
+  const refreshVpnStatus = useCallback(async (force = false) => {
+    try {
+      const res = await checkVpnStatus(force);
+      setVpnInfo(res);
+      return res;
+    } catch {
+      return { isVpn: false };
+    }
+  }, []);
 
   // Synchronous double-tap lock
   const isSubmittingRef = useRef(false);
@@ -110,18 +123,18 @@ export function AttendanceProvider({ children }) {
     }
   }, [token, user?.id, logout]);
 
-  // Full refresh (status + history)
+  // Full refresh (status + history + VPN)
   const refreshAttendance = useCallback(async () => {
     setIsRefreshing(true);
     setScreenError(null);
     try {
-      await Promise.all([fetchStatus(), fetchHistory()]);
+      await Promise.all([fetchStatus(), fetchHistory(), refreshVpnStatus(true)]);
     } catch (err) {
       setScreenError(getErrorMessage(err));
     } finally {
       setIsRefreshing(false);
     }
-  }, [fetchStatus, fetchHistory]);
+  }, [fetchStatus, fetchHistory, refreshVpnStatus]);
 
   // Initial load on mount or when user changes
   useEffect(() => {
@@ -131,7 +144,7 @@ export function AttendanceProvider({ children }) {
       setIsLoading(true);
       setScreenError(null);
       try {
-        await Promise.all([fetchStatus(), fetchHistory()]);
+        await Promise.all([fetchStatus(), fetchHistory(), refreshVpnStatus()]);
       } catch (err) {
         if (isMounted) {
           setScreenError(getErrorMessage(err));
@@ -165,6 +178,16 @@ export function AttendanceProvider({ children }) {
     setActionError(null);
 
     try {
+      // Check if VPN is active
+      const vpn = await checkVpnStatus(true);
+      if (vpn?.isVpn) {
+        setVpnInfo(vpn);
+        setActionError('Warning: VPN is active. Please turn off VPN to record attendance.');
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+
       const location = await locationService.getCurrentLocation();
       const isOffice = location.isOffice;
 
@@ -225,6 +248,16 @@ export function AttendanceProvider({ children }) {
     setActionError(null);
 
     try {
+      // Check if VPN is active
+      const vpn = await checkVpnStatus(true);
+      if (vpn?.isVpn) {
+        setVpnInfo(vpn);
+        setActionError('Warning: VPN is active. Please turn off VPN to record attendance.');
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+
       const location = await locationService.getCurrentLocation();
       const isOffice = location.isOffice;
 
@@ -270,6 +303,9 @@ export function AttendanceProvider({ children }) {
         screenError,
         actionError,
         clearActionError: () => setActionError(null),
+        isVpnDetected: Boolean(vpnInfo?.isVpn),
+        vpnInfo,
+        refreshVpnStatus,
         refreshAttendance,
         fetchHistory,
         handleClockIn,
