@@ -57,7 +57,8 @@
             "gifEnabled": false
           }
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

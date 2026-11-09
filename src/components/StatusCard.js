@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, Platform } from 'react-native';
-import { FileText } from 'lucide-react-native';
+import { FileText, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, RADIUS } from '../constants/theme';
 import PrimaryButton from './PrimaryButton';
@@ -92,6 +92,7 @@ export default function StatusCard({
       {/* Inline Action Error Message */}
       {Boolean(actionError) && (
         <View style={styles.errorBox}>
+          <AlertCircle size={18} color={colors.danger} style={styles.errorIcon} />
           <Text style={styles.errorText}>{actionError}</Text>
         </View>
       )}
@@ -217,20 +218,28 @@ function getStyles(colors, isDark, isClockedIn) {
       }),
     },
     errorBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
       backgroundColor: colors.dangerBg,
       paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
-      borderRadius: RADIUS.sm,
+      paddingVertical: SPACING.sm + 2,
+      borderRadius: RADIUS.md,
       marginBottom: SPACING.md,
       width: '100%',
       borderWidth: 1,
       borderColor: colors.danger,
     },
+    errorIcon: {
+      marginRight: SPACING.sm,
+      marginTop: 2,
+    },
     errorText: {
+      flex: 1,
       color: colors.errorText,
       fontSize: 12,
-      textAlign: 'center',
-      fontWeight: '600',
+      lineHeight: 18,
+      textAlign: 'left',
+      fontWeight: '500',
     },
     actionBtn: {
       width: '100%',
